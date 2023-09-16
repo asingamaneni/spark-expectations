@@ -1,12 +1,9 @@
 import functools
 from dataclasses import dataclass
-from typing import Dict, Optional, Any, Union, List, Type
-
+from typing import Dict, Optional, Any, Union, Type
 from pyspark.sql import DataFrame
-
 from spark_expectations import _log
 from spark_expectations.config.user_config import Constants as user_config
-from spark_expectations.core import get_spark_session
 from spark_expectations.core.context import SparkExpectationsContext
 from spark_expectations.core.exceptions import (
     SparkExpectationsMiscException,
@@ -22,6 +19,7 @@ from spark_expectations.sinks.utils.writer import SparkExpectationsWriter
 from spark_expectations.utils.actions import SparkExpectationsActions
 from spark_expectations.utils.reader import SparkExpectationsReader
 from spark_expectations.utils.regulate_flow import SparkExpectationsRegulateFlow
+from pyspark import StorageLevel
 
 
 @dataclass
@@ -47,9 +45,9 @@ class SparkExpectations:
     stats_streaming_options: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
-        self.spark = get_spark_session()
+        self.spark = self.rules_df.sparkSession
         self.actions = SparkExpectationsActions()
-        self._context = SparkExpectationsContext(product_id=self.product_id)
+        self._context = SparkExpectationsContext(product_id=self.product_id, spark=self.spark)
 
         self._writer = SparkExpectationsWriter(
             product_id=self.product_id, _context=self._context
@@ -75,7 +73,7 @@ class SparkExpectations:
         self._context.set_stats_table_writer_config(self.stats_table_writer.build())
         self._context.set_debugger_mode(self.debugger)
         self._context.set_dq_stats_table_name(self.stats_table)
-        self.rules_df = self.rules_df.cache()
+        self.rules_df = self.rules_df.persist(StorageLevel.MEMORY_AND_DISK)
 
     # TODO Add target_error_table_writer and stats_table_writer as parameters to this function so this takes precedence
     #  if user provides it
@@ -146,7 +144,7 @@ class SparkExpectations:
 
             # need to call the get_rules_frm_table function to get the rules from the table as expectations
             expectations, rules_execution_settings = self.reader.get_rules_from_df(
-                self.rules_table, target_table
+                self.rules_df, target_table
             )
 
             _row_dq: bool = rules_execution_settings.get("row_dq", False)

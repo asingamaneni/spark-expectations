@@ -7,9 +7,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, lit
 from spark_expectations.core.context import SparkExpectationsContext
 from spark_expectations.config.user_config import Constants as user_config
-from spark_expectations.core import get_spark_session
 from spark_expectations.core.exceptions import (
-    SparkExpectationsUserInputOrConfigInvalidException,
     SparkExpectationsMiscException,
 )
 
@@ -24,7 +22,7 @@ class SparkExpectationsReader:
     _context: SparkExpectationsContext
 
     def __post_init__(self) -> None:
-        self.spark = get_spark_session()
+        self.spark = self._context.spark
 
     def set_notification_param(
         self, notification: Optional[Dict[str, Union[int, str, bool]]] = None

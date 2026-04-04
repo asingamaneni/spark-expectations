@@ -1,12 +1,14 @@
 """Tests for spark_expectations.rules.plugins._flatten"""
 
 import pytest
+from unittest.mock import patch
 
 from spark_expectations.core.exceptions import SparkExpectationsUserInputOrConfigInvalidException
 from spark_expectations.rules.plugins._flatten import (
     COLUMN_DEFAULTS,
     RULES_SCHEMA_COLUMNS,
     _cast_value,
+    _warn_duplicate_rule_names,
     flatten_rules_list,
 )
 
@@ -450,3 +452,128 @@ def test_cast_value_boolean_from_non_bool_non_str():
     assert _cast_value("is_active", 0) is False
 
 
+# ── _warn_duplicate_rule_names coverage ───────────────────────────────
+
+_FLATTEN_LOGGER = "spark_expectations.rules.plugins._flatten"
+
+
+def test_warn_duplicate_rule_names_no_duplicates_no_warning():
+    """No warning should be emitted when all rule names are unique."""
+    rows = [
+        {"rule": "rule_a", "rule_type": "row_dq"},
+        {"rule": "rule_b", "rule_type": "row_dq"},
+        {"rule": "rule_c", "rule_type": "agg_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        mock_logger.warning.assert_not_called()
+
+
+def test_warn_duplicate_rule_names_single_duplicate_warns():
+    """A warning should be emitted once when one rule name is duplicated."""
+    rows = [
+        {"rule": "col1_not_null", "rule_type": "row_dq"},
+        {"rule": "col1_not_null", "rule_type": "row_dq"},
+        {"rule": "row_count", "rule_type": "agg_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        assert mock_logger.warning.call_count == 1
+        call_args = mock_logger.warning.call_args
+        # The format string and positional args contain the rule name and count
+        assert "col1_not_null" in call_args.args[1]
+        assert call_args.args[2] == 2
+
+
+def test_warn_duplicate_rule_names_multiple_duplicates_warns_for_each():
+    """A separate warning should be emitted for each duplicated rule name."""
+    rows = [
+        {"rule": "rule_a", "rule_type": "row_dq"},
+        {"rule": "rule_a", "rule_type": "row_dq"},
+        {"rule": "rule_b", "rule_type": "agg_dq"},
+        {"rule": "rule_b", "rule_type": "agg_dq"},
+        {"rule": "rule_b", "rule_type": "agg_dq"},
+        {"rule": "rule_c", "rule_type": "row_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        assert mock_logger.warning.call_count == 2
+        warned_names = [call.args[1] for call in mock_logger.warning.call_args_list]
+        assert "rule_a" in warned_names
+        assert "rule_b" in warned_names
+
+
+def test_warn_duplicate_rule_names_count_is_correct():
+    """The warning should report the correct count for each duplicate."""
+    rows = [
+        {"rule": "rule_b", "rule_type": "agg_dq"},
+        {"rule": "rule_b", "rule_type": "agg_dq"},
+        {"rule": "rule_b", "rule_type": "agg_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        call_args = mock_logger.warning.call_args
+        # Third positional arg is the count
+        assert call_args.args[2] == 3
+
+
+def test_warn_duplicate_rule_names_empty_rows_no_warning():
+    """No warning should be emitted for an empty rows list."""
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names([])
+        mock_logger.warning.assert_not_called()
+
+
+# ── flatten_rules_list duplicate detection (integration) ─────────────
+
+
+def test_flatten_rules_list_duplicate_rule_names_emits_warning():
+    """flatten_rules_list should warn when the rules list contains duplicate names."""
+    data = {
+        "product_id": "prod1",
+        "table_name": "db.table1",
+        "rules": [
+            {
+                "rule": "col1_not_null",
+                "rule_type": "row_dq",
+                "expectation": "col1 IS NOT NULL",
+            },
+            {
+                "rule": "col1_not_null",  # duplicate
+                "rule_type": "row_dq",
+                "expectation": "col1 IS NOT NULL",
+            },
+        ],
+    }
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        rows = flatten_rules_list(data)
+
+    # Both rules are still returned — warning is non-breaking
+    assert len(rows) == 2
+    mock_logger.warning.assert_called_once()
+    assert "col1_not_null" in mock_logger.warning.call_args.args[1]
+
+
+def test_flatten_rules_list_unique_rule_names_no_warning():
+    """flatten_rules_list should NOT warn when all rule names are unique."""
+    data = {
+        "product_id": "prod1",
+        "table_name": "db.table1",
+        "rules": [
+            {
+                "rule": "col1_not_null",
+                "rule_type": "row_dq",
+                "expectation": "col1 IS NOT NULL",
+            },
+            {
+                "rule": "col2_positive",
+                "rule_type": "row_dq",
+                "expectation": "col2 > 0",
+            },
+        ],
+    }
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        rows = flatten_rules_list(data)
+
+    assert len(rows) == 2
+    mock_logger.warning.assert_not_called()

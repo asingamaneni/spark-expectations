@@ -37,6 +37,7 @@ A simpler format without ``dq_env`` is also supported, using a top-level
         expectation: "col1 IS NOT NULL"
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from pyspark.sql import DataFrame
@@ -44,6 +45,8 @@ from pyspark.sql.session import SparkSession
 from pyspark.sql.types import BooleanType, DataType, IntegerType, StringType, StructField, StructType
 
 from spark_expectations.core.exceptions import SparkExpectationsUserInputOrConfigInvalidException
+
+logger = logging.getLogger(__name__)
 
 VALID_RULE_TYPES = {"row_dq", "agg_dq", "query_dq"}
 
@@ -229,7 +232,36 @@ def flatten_rules_list(
 
         rows.append(_normalise_row(row))
 
+    _warn_duplicate_rule_names(rows)
+
     return rows
+
+
+def _warn_duplicate_rule_names(rows: List[Dict[str, Any]]) -> None:
+    """Emit a warning for each rule name that appears more than once.
+
+    Duplicate rule names within the same file lead to duplicate DQ checks
+    being executed and double-counting in statistics. This function logs a
+    warning for every duplicated name so users can identify and fix the
+    issue without breaking existing pipelines.
+
+    Args:
+        rows: Normalised rule row dicts produced by :func:`flatten_rules_list`.
+    """
+    seen: Dict[str, int] = {}
+    for row in rows:
+        rule_name = row.get("rule", "")
+        seen[rule_name] = seen.get(rule_name, 0) + 1
+
+    duplicates = {name: count for name, count in seen.items() if count > 1}
+    for name, count in sorted(duplicates.items()):
+        logger.warning(
+            "Duplicate rule name detected: '%s' appears %d times in the rules file. "
+            "This will cause duplicate DQ checks and double-counting in statistics. "
+            "Please ensure every rule has a unique name.",
+            name,
+            count,
+        )
 
 
 # ── helpers ──────────────────────────────────────────────────────────────

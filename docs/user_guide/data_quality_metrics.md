@@ -193,3 +193,95 @@ create table if not exists `<catalog>`.`<schema>`.`<stats_table_name>_querydq_ou
 8. `source_output` --
 9. `target_output` --
 10. `dq_time` Dq executed timestamp
+
+
+### Interpreting DQ Metrics
+
+Once your DQ stats tables are populated, you can use the collected metrics to monitor data quality trends and diagnose issues. This section provides practical SQL queries and guidance for common analysis scenarios.
+
+#### Monitoring DQ Pass/Fail Rates Over Time
+
+Track overall data quality health by querying the success and error percentages from the stats table:
+
+```sql
+SELECT
+    meta_dq_run_date,
+    table_name,
+    input_count,
+    output_count,
+    error_count,
+    success_percentage,
+    error_percentage,
+    dq_status
+FROM `catalog`.`schema`.`dq_stats`
+WHERE product_id = 'your_product_id'
+ORDER BY meta_dq_run_datetime DESC
+LIMIT 30;
+```
+
+A rising `error_percentage` over successive runs may indicate upstream data quality degradation or schema drift in source systems.
+
+#### Identifying Failing Rules
+
+Use the detailed stats table to find which specific rules are failing most frequently:
+
+```sql
+SELECT
+    rule,
+    rule_type,
+    source_dq_status,
+    target_dq_status,
+    source_dq_error_row_count,
+    dq_date
+FROM `catalog`.`schema`.`dq_stats_detailed`
+WHERE source_dq_status = 'fail' OR target_dq_status = 'fail'
+ORDER BY dq_date DESC;
+```
+
+#### Understanding Error Drop Thresholds
+
+The `row_dq_error_threshold` field in the stats table contains a summary of rules that exceeded their configured error drop thresholds. When `error_drop_percentage` exceeds `error_drop_threshold` for a rule, the framework will trigger the configured alert. You can query these to identify rules that are consistently near their threshold:
+
+```sql
+SELECT
+    meta_dq_run_date,
+    explode(row_dq_error_threshold) AS threshold_info
+FROM `catalog`.`schema`.`dq_stats`
+WHERE product_id = 'your_product_id'
+ORDER BY meta_dq_run_datetime DESC;
+```
+
+#### Comparing Source vs Target DQ Results
+
+For rules that run on both source and target (pre- and post-transformation), compare results to detect issues introduced during processing:
+
+```sql
+SELECT
+    rule,
+    source_dq_status,
+    target_dq_status,
+    source_dq_actual_outcome,
+    target_dq_actual_outcome
+FROM `catalog`.`schema`.`dq_stats_detailed`
+WHERE source_dq_status != target_dq_status
+    AND dq_date = current_date();
+```
+
+Mismatches between source and target status for the same rule indicate that data transformations may be introducing quality issues.
+
+#### Performance Monitoring
+
+Track DQ execution time to detect performance regressions:
+
+```sql
+SELECT
+    meta_dq_run_date,
+    table_name,
+    dq_run_time
+FROM `catalog`.`schema`.`dq_stats`
+WHERE product_id = 'your_product_id'
+ORDER BY meta_dq_run_datetime DESC
+LIMIT 10;
+```
+
+The `dq_run_time` map contains timing breakdowns by rule type. Increasing execution times may indicate growing data volumes or inefficient rule definitions that need optimization.

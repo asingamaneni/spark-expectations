@@ -42,7 +42,7 @@ class SparkExpectationsCollectStatistics:
                     self._context.set_dq_end_time()
 
                     self._writer.write_error_stats()
-                    raise SparkExpectationsMiscException(e)
+                    raise SparkExpectationsMiscException(e) from e
                 return result
 
             return wrapper

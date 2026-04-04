@@ -361,6 +361,67 @@ def test_write_df_to_table(
     save_df_as_table.assert_called_once_with(_fixture_writer, _fixture_employee, table_name, options)
 
 
+def test_get_row_dq_detailed_stats_skips_missing_rules(_fixture_writer):
+    """Test that get_row_dq_detailed_stats gracefully skips rules
+    that are defined in expectations but missing from summarized results,
+    instead of raising a KeyError."""
+    _mock_context = Mock(spec=SparkExpectationsContext)
+    _mock_context.product_id = "test_product"
+    setattr(_mock_context, "get_run_id", "run_001")
+    setattr(_mock_context, "get_table_name", "test_table")
+    setattr(_mock_context, "get_input_count", 100)
+    setattr(
+        _mock_context,
+        "get_dq_expectations",
+        {
+            "row_dq_rules": [
+                {
+                    "rule_type": "row_dq",
+                    "rule": "rule_present",
+                    "column_name": "col1",
+                    "expectation": "col1 > 0",
+                    "tag": "validity",
+                    "description": "col1 should be positive",
+                    "action_if_failed": "ignore",
+                },
+                {
+                    "rule_type": "row_dq",
+                    "rule": "rule_missing_from_results",
+                    "column_name": "col2",
+                    "expectation": "col2 is not null",
+                    "tag": "completeness",
+                    "description": "col2 should not be null",
+                    "action_if_failed": "ignore",
+                },
+            ]
+        },
+    )
+    setattr(
+        _mock_context,
+        "get_summarized_row_dq_res",
+        [{"rule": "rule_present", "failed_row_count": "5"}],
+    )
+    setattr(
+        _mock_context,
+        "get_row_dq_start_time",
+        datetime(2024, 1, 1, 12, 0, 0),
+    )
+    setattr(
+        _mock_context,
+        "get_row_dq_end_time",
+        datetime(2024, 1, 1, 12, 5, 0),
+    )
+    _mock_context.spark = spark
+    writer = SparkExpectationsWriter(_mock_context)
+
+    result = writer.get_row_dq_detailed_stats()
+
+    # Only the rule_present should appear; rule_missing_from_results is skipped
+    assert len(result) == 1
+    assert result[0][4] == "rule_present"  # rule name is 5th element
+    assert result[0][13] == "5"  # failed_row_count
+
+
 @pytest.mark.parametrize(
     "input_record",
     [

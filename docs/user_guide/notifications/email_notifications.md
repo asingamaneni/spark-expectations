@@ -67,6 +67,7 @@ Before using SMTP notifications, verify that the following parameters are set co
 
     You can use the following Python script to test your SMTP configuration. This script will send a test email using the configured SMTP settings. Make sure to replace the placeholders with your actual SMTP configuration values.
     ```python
+    import smtplib
     from email.mime.text import MIMEText
 
     smtp_host = "smtp.example.com"

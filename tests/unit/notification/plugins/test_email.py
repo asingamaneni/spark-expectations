@@ -77,6 +77,58 @@ def test_send_notification_exception(_mock_context):
 
 
 @patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
+def test_send_notification_quit_called_on_sendmail_failure(_mock_context):
+    """Test that server.quit() is called even when sendmail raises an exception,
+    ensuring the SMTP connection is not leaked."""
+    email_handler = SparkExpectationsEmailPluginImpl()
+    _mock_context.get_enable_mail = True
+    _mock_context.get_mail_from = "sender@example.com"
+    _mock_context.get_to_mail = "receiver@example.com"
+    _mock_context.get_mail_subject = "Test Email"
+    _mock_context.get_mail_smtp_server = "mailhost.example.com"
+    _mock_context.get_mail_smtp_port = 587
+    _mock_context.get_enable_smtp_server_auth = False
+
+    mock_config_args = {"message": "Test Email Body"}
+
+    with (
+        patch("spark_expectations.notifications.plugins.email.smtplib.SMTP") as mock_smtp,
+        patch("spark_expectations.notifications.plugins.email.MIMEMultipart") as _mock_mltp,
+        pytest.raises(SparkExpectationsEmailException),
+    ):
+        mock_smtp.return_value.sendmail.side_effect = Exception("SMTP sendmail failed")
+        email_handler.send_notification(_context=_mock_context, _config_args=mock_config_args)
+
+    # The critical assertion: quit() must be called even though sendmail raised
+    mock_smtp.return_value.quit.assert_called()
+
+
+@patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
+def test_send_notification_quit_called_on_starttls_failure(_mock_context):
+    """Test that server.quit() is called even when starttls raises an exception."""
+    email_handler = SparkExpectationsEmailPluginImpl()
+    _mock_context.get_enable_mail = True
+    _mock_context.get_mail_from = "sender@example.com"
+    _mock_context.get_to_mail = "receiver@example.com"
+    _mock_context.get_mail_subject = "Test Email"
+    _mock_context.get_mail_smtp_server = "mailhost.example.com"
+    _mock_context.get_mail_smtp_port = 587
+
+    mock_config_args = {"message": "Test Email Body"}
+
+    with (
+        patch("spark_expectations.notifications.plugins.email.smtplib.SMTP") as mock_smtp,
+        patch("spark_expectations.notifications.plugins.email.MIMEMultipart") as _mock_mltp,
+        pytest.raises(SparkExpectationsEmailException),
+    ):
+        mock_smtp.return_value.starttls.side_effect = Exception("TLS handshake failed")
+        email_handler.send_notification(_context=_mock_context, _config_args=mock_config_args)
+
+    # quit() must be called to close the socket even though starttls failed
+    mock_smtp.return_value.quit.assert_called()
+
+
+@patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
 def test_send_notification_with_smtp_auth(_mock_context):
     # arrange
     email_handler = SparkExpectationsEmailPluginImpl()

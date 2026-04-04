@@ -176,20 +176,20 @@ class SparkExpectationsEmailPluginImpl(SparkExpectationsNotification):
 
                 msg.attach(MIMEText(mail_content, content_type))
 
-                # mailhost.com
                 server = smtplib.SMTP(_context.get_mail_smtp_server, _context.get_mail_smtp_port)
-                server.starttls()
-                if _context.get_enable_smtp_server_auth:
-                    self._get_smtp_password(_context, server)
-                text = msg.as_string()
-                server.sendmail(
-                    _context.get_mail_from,
-                    [email.strip() for email in _context.get_to_mail.split(",")],
-                    text,
-                )
-                server.quit()
-
-                _log.info("email sent successfully")
+                try:
+                    server.starttls()
+                    if _context.get_enable_smtp_server_auth:
+                        self._get_smtp_password(_context, server)
+                    text = msg.as_string()
+                    server.sendmail(
+                        _context.get_mail_from,
+                        [email.strip() for email in _context.get_to_mail.split(",")],
+                        text,
+                    )
+                    _log.info("email sent successfully")
+                finally:
+                    server.quit()
 
         except Exception as e:
             raise SparkExpectationsEmailException(

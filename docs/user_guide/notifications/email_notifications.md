@@ -127,6 +127,75 @@ Make sure your SMTP server allows connections from your environment (some provid
         user_config.se_notifications_default_basic_email_template: custom_html_email_template
     }
     ```
+## Troubleshooting
+
+### Common SMTP Issues
+
+??? warning "Connection Refused / Timeout"
+    **Symptom:** `ConnectionRefusedError` or `TimeoutError` when sending emails.
+
+    **Possible causes:**
+
+    - SMTP host or port is incorrect. Verify `se_notifications_email_smtp_host` and `se_notifications_email_smtp_port`.
+    - A firewall or network policy is blocking outbound traffic on the SMTP port.
+    - The SMTP server is down or unreachable from your Spark cluster.
+
+    **Debugging steps:**
+
+    1. Test connectivity from a cluster node:
+        ```bash
+        telnet smtp.example.com 587
+        ```
+    2. Verify the SMTP host resolves correctly:
+        ```bash
+        nslookup smtp.example.com
+        ```
+    3. Check if your cloud provider requires a VPC endpoint or allowlist entry for SMTP traffic.
+
+??? warning "Authentication Failures"
+    **Symptom:** `SMTPAuthenticationError` or `535 Authentication failed`.
+
+    **Possible causes:**
+
+    - Incorrect SMTP username or password.
+    - The password was not stored correctly in the secrets backend (Cerberus or Databricks Secrets).
+    - Some email providers (e.g., Gmail, Outlook 365) require app-specific passwords or OAuth tokens instead of regular passwords.
+
+    **Debugging steps:**
+
+    1. Verify credentials work outside Spark using the test script in the "Configure SMTP Notifications" section above.
+    2. If using Databricks Secrets, confirm the scope and key names match your configuration.
+    3. Check if multi-factor authentication (MFA) requires an app password.
+
+??? warning "Emails Not Arriving"
+    **Symptom:** `send_notification` succeeds (no errors) but recipients do not receive the email.
+
+    **Possible causes:**
+
+    - The email was caught by the recipient's spam filter.
+    - The sender address (`se_notifications_email_from`) is not authorized to send via the SMTP server (SPF/DKIM check failure).
+    - The recipient address has a typo or is no longer valid.
+
+    **Debugging steps:**
+
+    1. Check the spam/junk folder of the recipient mailbox.
+    2. Verify the sender address is authorized on your mail server.
+    3. Review SMTP server logs (if accessible) for delivery status.
+
+??? warning "TLS / SSL Errors"
+    **Symptom:** `SSLError` or `STARTTLS extension not supported by server`.
+
+    **Possible causes:**
+
+    - The SMTP server does not support STARTTLS on the configured port.
+    - Port 465 typically uses implicit SSL, while port 587 uses STARTTLS — make sure you are using the correct port.
+    - Certificate verification is failing due to a self-signed certificate on the mail server.
+
+    **Debugging steps:**
+
+    1. Confirm which ports your SMTP server supports and whether it uses STARTTLS or implicit SSL.
+    2. If using a private mail server with self-signed certificates, see the [Adding Certificates](../../developer_guide/setup/#adding-certificates) section in the developer guide.
+
 ### Template Example
 
 ??? note "Show custom template example"

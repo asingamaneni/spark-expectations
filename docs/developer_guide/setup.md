@@ -10,7 +10,7 @@ This guide walks you through setting up a local development environment for spar
 
 | | |
 |---|---|
-| **Supported versions** | 3.9, 3.10, 3.11, 3.12 |
+| **Supported versions** | 3.9, 3.10, 3.11, 3.12, 3.13 |
 | **Recommended** | Latest 3.12.x |
 
 ```sh

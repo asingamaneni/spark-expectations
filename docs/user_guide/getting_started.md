@@ -5,9 +5,11 @@ This guide will help you set up your environment, install the library, and under
 ## Prerequisites
 
 ### Python
-- **Supported versions:** 3.9, 3.10, 3.11, 3.12 (recommended: latest 3.12.x)
+- **Supported versions:** 3.9, 3.10, 3.11, 3.12, 3.13 (recommended: latest 3.12.x)
+### PySpark
+- **Supported versions:** 3.x and 4.x (PySpark 4.0+ requires Python 3.9+)
 ### Java
-- **Supported versions:** 8, 11, 17 
+- **Supported versions:** 8, 11, 17
 
 
 ## Installation

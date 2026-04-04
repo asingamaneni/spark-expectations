@@ -120,9 +120,7 @@ def rows_to_dataframe(rows: List[Dict[str, Any]], spark: SparkSession) -> DataFr
     return spark.createDataFrame(rows, schema=rules_schema())
 
 
-def flatten_rules_list(
-    data: Dict[str, Any], env: Optional[str] = None
-) -> List[Dict[str, Any]]:
+def flatten_rules_list(data: Dict[str, Any], env: Optional[str] = None) -> List[Dict[str, Any]]:
     """Convert a rules-list definition into a flat list of row dicts.
 
     Expected structure (dq_env -- recommended)::
@@ -182,8 +180,7 @@ def flatten_rules_list(
         env_config = env_map.get(env_lower)
         if not env_config or not isinstance(env_config, dict):
             raise SparkExpectationsUserInputOrConfigInvalidException(
-                f"Environment '{env}' not found in 'dq_env'. "
-                f"Available environments: {sorted(dq_env.keys())}."
+                f"Environment '{env}' not found in 'dq_env'. " f"Available environments: {sorted(dq_env.keys())}."
             )
         table_name = env_config.get("table_name", "")
         env_defaults = {k: v for k, v in env_config.items() if k != "table_name"}
@@ -203,9 +200,7 @@ def flatten_rules_list(
     rows: List[Dict[str, Any]] = []
     for rule_def in rules_list:
         if not isinstance(rule_def, dict):
-            raise SparkExpectationsUserInputOrConfigInvalidException(
-                "Each entry in 'rules' must be a dict."
-            )
+            raise SparkExpectationsUserInputOrConfigInvalidException("Each entry in 'rules' must be a dict.")
 
         missing = REQUIRED_RULE_FIELDS - set(rule_def.keys())
         if missing:
@@ -221,8 +216,7 @@ def flatten_rules_list(
         rule_type = row.get("rule_type", "")
         if not rule_type:
             raise SparkExpectationsUserInputOrConfigInvalidException(
-                f"Rule '{row.get('rule')}' is missing 'rule_type'. "
-                f"Must be one of {sorted(VALID_RULE_TYPES)}."
+                f"Rule '{row.get('rule')}' is missing 'rule_type'. " f"Must be one of {sorted(VALID_RULE_TYPES)}."
             )
         if rule_type not in VALID_RULE_TYPES:
             raise SparkExpectationsUserInputOrConfigInvalidException(
@@ -245,13 +239,35 @@ def _warn_duplicate_rule_names(rows: List[Dict[str, Any]]) -> None:
     warning for every duplicated name so users can identify and fix the
     issue without breaking existing pipelines.
 
+    **Scope:** Duplicates are detected by rule name string across the entire
+    rules list, regardless of ``rule_type``. For example, a rule named
+    ``"check_null"`` appearing in both ``row_dq`` and ``agg_dq`` sections is
+    still considered a duplicate.
+
+    **Design choice:** This emits a ``logging.warning`` rather than raising an
+    exception so that existing pipelines with inadvertent duplicates are not
+    broken. Users are informed and can fix at their own pace.
+
+    Rules with empty or missing names are excluded from duplicate detection
+    and reported separately.
+
     Args:
         rows: Normalised rule row dicts produced by :func:`flatten_rules_list`.
     """
     seen: Dict[str, int] = {}
+    empty_count = 0
     for row in rows:
         rule_name = row.get("rule", "")
+        if not rule_name:
+            empty_count += 1
+            continue
         seen[rule_name] = seen.get(rule_name, 0) + 1
+
+    if empty_count:
+        logger.warning(
+            "Found %d rule(s) with empty or missing names; these are excluded from duplicate detection.",
+            empty_count,
+        )
 
     duplicates = {name: count for name, count in seen.items() if count > 1}
     for name, count in sorted(duplicates.items()):

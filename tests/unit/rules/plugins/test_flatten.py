@@ -191,35 +191,43 @@ def test_flatten_rules_list_empty_rules_raises():
 
 def test_flatten_rules_list_missing_rule_field_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="missing required"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "rules": [{"expectation": "x > 0"}],
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "rules": [{"expectation": "x > 0"}],
+            }
+        )
 
 
 def test_flatten_rules_list_missing_expectation_field_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="missing required"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "rules": [{"rule": "r1"}],
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "rules": [{"rule": "r1"}],
+            }
+        )
 
 
 def test_flatten_rules_list_missing_rule_type_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="missing 'rule_type'"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "table_name": "t1",
-            "rules": [{"rule": "r1", "expectation": "x > 0"}],
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "table_name": "t1",
+                "rules": [{"rule": "r1", "expectation": "x > 0"}],
+            }
+        )
 
 
 def test_flatten_rules_list_invalid_rule_type_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="Invalid rule_type"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "rules": [{"rule": "r1", "rule_type": "bad_type", "expectation": "x > 0"}],
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "rules": [{"rule": "r1", "rule_type": "bad_type", "expectation": "x > 0"}],
+            }
+        )
 
 
 def test_flatten_rules_list_boolean_values_are_native(minimal_rules_list):
@@ -312,9 +320,7 @@ def test_flatten_rules_list_dq_env_lowercase_option_matches_uppercase_key():
                 "priority": "medium",
             },
         },
-        "rules": [
-            {"rule": "r1", "rule_type": "row_dq", "expectation": "x > 0"}
-        ],
+        "rules": [{"rule": "r1", "rule_type": "row_dq", "expectation": "x > 0"}],
     }
     rows = flatten_rules_list(data, env="dev")
     assert rows[0]["table_name"] == "dev.orders"
@@ -332,20 +338,26 @@ def test_flatten_rules_list_dq_env_missing_env_raises(minimal_dq_env_rules):
 
 def test_flatten_rules_list_dq_env_empty_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="non-empty mapping"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "dq_env": {},
-            "rules": [{"rule": "r1", "expectation": "x > 0"}],
-        }, env="DEV")
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "dq_env": {},
+                "rules": [{"rule": "r1", "expectation": "x > 0"}],
+            },
+            env="DEV",
+        )
 
 
 def test_flatten_rules_list_dq_env_not_dict_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="non-empty mapping"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "dq_env": "not_a_dict",
-            "rules": [{"rule": "r1", "expectation": "x > 0"}],
-        }, env="DEV")
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "dq_env": "not_a_dict",
+                "rules": [{"rule": "r1", "expectation": "x > 0"}],
+            },
+            env="DEV",
+        )
 
 
 def test_flatten_rules_list_dq_env_with_multiple_rules():
@@ -390,34 +402,40 @@ def test_flatten_rules_list_dq_env_with_multiple_rules():
 
 def test_flatten_rules_list_non_dict_rule_entry_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="must be a dict"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "rules": ["not_a_dict"],
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "rules": ["not_a_dict"],
+            }
+        )
 
 
 def test_flatten_rules_list_rules_not_a_list_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="non-empty"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "rules": "not_a_list",
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "rules": "not_a_list",
+            }
+        )
 
 
 def test_flatten_rules_list_non_numeric_error_drop_threshold_raises():
     with pytest.raises(SparkExpectationsUserInputOrConfigInvalidException, match="expects an integer"):
-        flatten_rules_list({
-            "product_id": "p1",
-            "table_name": "t1",
-            "rules": [
-                {
-                    "rule": "r1",
-                    "rule_type": "row_dq",
-                    "expectation": "x > 0",
-                    "error_drop_threshold": "abc",
-                }
-            ],
-        })
+        flatten_rules_list(
+            {
+                "product_id": "p1",
+                "table_name": "t1",
+                "rules": [
+                    {
+                        "rule": "r1",
+                        "rule_type": "row_dq",
+                        "expectation": "x > 0",
+                        "error_drop_threshold": "abc",
+                    }
+                ],
+            }
+        )
 
 
 # ── _cast_value coverage ───────────────────────────────────────────────
@@ -479,10 +497,13 @@ def test_warn_duplicate_rule_names_single_duplicate_warns():
     with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
         _warn_duplicate_rule_names(rows)
         assert mock_logger.warning.call_count == 1
-        call_args = mock_logger.warning.call_args
-        # The format string and positional args contain the rule name and count
-        assert "col1_not_null" in call_args.args[1]
-        assert call_args.args[2] == 2
+        mock_logger.warning.assert_called_once_with(
+            "Duplicate rule name detected: '%s' appears %d times in the rules file. "
+            "This will cause duplicate DQ checks and double-counting in statistics. "
+            "Please ensure every rule has a unique name.",
+            "col1_not_null",
+            2,
+        )
 
 
 def test_warn_duplicate_rule_names_multiple_duplicates_warns_for_each():
@@ -577,3 +598,52 @@ def test_flatten_rules_list_unique_rule_names_no_warning():
 
     assert len(rows) == 2
     mock_logger.warning.assert_not_called()
+
+
+# ── cross-rule-type and edge case tests ──────────────────────────────
+
+
+def test_warn_duplicate_rule_names_cross_rule_type():
+    """Same rule name in different rule_types should still be flagged as duplicate."""
+    rows = [
+        {"rule": "check_null", "rule_type": "row_dq"},
+        {"rule": "check_null", "rule_type": "agg_dq"},
+        {"rule": "unique_rule", "rule_type": "query_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        assert mock_logger.warning.call_count == 1
+        mock_logger.warning.assert_called_once_with(
+            "Duplicate rule name detected: '%s' appears %d times in the rules file. "
+            "This will cause duplicate DQ checks and double-counting in statistics. "
+            "Please ensure every rule has a unique name.",
+            "check_null",
+            2,
+        )
+
+
+def test_warn_duplicate_rule_names_empty_names_skipped():
+    """Empty rule names should not count as duplicates of each other."""
+    rows = [
+        {"rule": "", "rule_type": "row_dq"},
+        {"rule": "", "rule_type": "row_dq"},
+        {"rule": "valid_rule", "rule_type": "agg_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        # Should warn about empty names, but NOT about duplicates
+        assert mock_logger.warning.call_count == 1
+        assert "empty or missing" in mock_logger.warning.call_args.args[0]
+        assert mock_logger.warning.call_args.args[1] == 2
+
+
+def test_warn_duplicate_rule_names_missing_rule_key():
+    """Rows missing the 'rule' key entirely should be treated as empty names."""
+    rows = [
+        {"rule_type": "row_dq"},
+        {"rule": "valid_rule", "rule_type": "agg_dq"},
+    ]
+    with patch(f"{_FLATTEN_LOGGER}.logger") as mock_logger:
+        _warn_duplicate_rule_names(rows)
+        assert mock_logger.warning.call_count == 1
+        assert "empty or missing" in mock_logger.warning.call_args.args[0]

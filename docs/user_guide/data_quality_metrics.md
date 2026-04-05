@@ -183,13 +183,13 @@ create table if not exists `<catalog>`.`<schema>`.`<stats_table_name>_querydq_ou
 );
 ```
 
-1. `run_id` Run Id for a specific run 
-2. `product_id` Unique product identifier 
-3. `table_name` --
+1. `run_id` Run Id for a specific run
+2. `product_id` Unique product identifier
+3. `table_name` Name of the target table the data quality rules are applied to
 4. `rule`  Rule name
-5. `column_name` column name
-6. `alias` --
-7. `dq_type` --
-8. `source_output` --
-9. `target_output` --
+5. `column_name` Name of the column being validated by the rule
+6. `alias` Identifier used to link source and target query DQ outputs for comparison (format: `source_<label>` or `target_<label>`)
+7. `dq_type` Type of data quality rule: `row_dq`, `agg_dq`, or `query_dq`
+8. `source_output` Result of the query DQ rule executed against the source dataset (before row-level DQ)
+9. `target_output` Result of the query DQ rule executed against the target dataset (after row-level DQ)
 10. `dq_time` Dq executed timestamp

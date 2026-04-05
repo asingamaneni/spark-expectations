@@ -252,7 +252,30 @@ class SparkExpectationsActions:
 
                         _agg_dq_expectation_cond_expr = expr(_agg_dq_expectation_aggstring)
 
-                        _agg_dq_actual_count_value = int(df.agg(_agg_dq_expectation_cond_expr).collect()[0][0])
+                        _agg_dq_actual_count_value_raw = df.agg(_agg_dq_expectation_cond_expr).collect()[0][0]
+
+                        if _agg_dq_actual_count_value_raw is None:
+                            raise ValueError(
+                                f"Range-based aggregation result is None for rule '{_dq_rule['rule']}' "
+                                f"(possibly due to empty data)."
+                            )
+
+                        if isinstance(_agg_dq_actual_count_value_raw, (int, float)):
+                            if (
+                                isinstance(_agg_dq_actual_count_value_raw, float)
+                                and not _agg_dq_actual_count_value_raw.is_integer()
+                            ):
+                                _log.warning(
+                                    f"Aggregation result {_agg_dq_actual_count_value_raw} for rule "
+                                    f"'{_dq_rule['rule']}' is a non-integer float and will be rounded."
+                                )
+                            _agg_dq_actual_count_value = round(_agg_dq_actual_count_value_raw)
+                        else:
+                            raise TypeError(
+                                f"Unexpected type for range-based aggregation result: "
+                                f"{type(_agg_dq_actual_count_value_raw)}, "
+                                f"value: {_agg_dq_actual_count_value_raw}"
+                            )
 
                         _agg_dq_expression_str_lower = (
                             str(_agg_dq_actual_count_value) + _agg_dq_expectation_expr_lowerbound

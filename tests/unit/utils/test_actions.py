@@ -147,6 +147,48 @@ def test_error_table_override():
     assert ctx.get_error_table_name_user_specified is True
 
 
+def test_agg_dq_range_null_aggregation_raises_value_error():
+    """Test that range-based agg DQ raises ValueError when aggregation result is None.
+
+    The range-based path in agg_query_dq_detailed_result should handle None results
+    from aggregations (e.g., when the DataFrame is empty) by raising a clear ValueError,
+    matching the behavior of the non-range path.
+    """
+    _mock_context = Mock(spec=SparkExpectationsContext)
+    _mock_context.get_agg_dq_rule_type_name = "agg_dq"
+    _mock_context.get_agg_dq_detailed_stats_status = True
+    _mock_context.get_source_agg_dq_status = True
+    _mock_context.get_target_agg_dq_status = False
+    _mock_context.get_input_count = 0
+    _mock_context.get_query_dq_rule_type_name = "query_dq"
+    _mock_context.get_query_dq_detailed_stats_status = False
+
+    # Range-based rule (uses both > and < operators)
+    _range_rule = {
+        "rule_type": "agg_dq",
+        "rule": "col1_sum_range",
+        "column_name": "col1",
+        "expectation": "sum(col1)>5 and sum(col1)<20",
+        "action_if_failed": "ignore",
+        "table_name": "test_table",
+        "tag": "validity",
+        "enable_for_source_dq_validation": True,
+        "description": "sum of col1 in range",
+        "product_id": "product_1",
+    }
+
+    # Mock DataFrame where aggregation returns None
+    _mock_df = MagicMock()
+    _mock_agg_result = MagicMock()
+    _mock_agg_result.collect.return_value = [MagicMock(__getitem__=lambda self, idx: None)]
+    _mock_df.agg.return_value = _mock_agg_result
+
+    with pytest.raises(SparkExpectationsMiscException, match=r"error occurred while running agg_query_dq_detailed_result"):
+        SparkExpectationsActions.agg_query_dq_detailed_result(
+            _mock_context, _range_rule, _mock_df, []
+        )
+
+
 def test_multi_decorator_default_updates():
     """Verify default error table updates across multiple decorator calls"""
     ctx = SparkExpectationsContext(product_id="p1", spark=Mock())

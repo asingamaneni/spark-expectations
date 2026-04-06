@@ -63,6 +63,8 @@ nav:
                   - Email Notification Config: user_guide/notifications/email_notifications.md
                   - Email Notification Types: user_guide/notifications/email_notification_types.md
               - Slack: user_guide/notifications/slack_notifications.md
+              - Teams: user_guide/notifications/teams_notifications.md
+              - Zoom: user_guide/notifications/zoom_notifications.md
               - PagerDuty: user_guide/notifications/pagerduty_notifications.md
           - Observability: Observability_examples.md
           - Stream Writer Guide: user_guide/Stream_write_guide.md

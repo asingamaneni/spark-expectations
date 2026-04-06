@@ -13,8 +13,8 @@ When evaluating characteristic of data and it's quality we usually think of data
 !!! Hint "[Rule Examples](../../configurations/rules/)" 
 
 ## Rules Table 
-For user to be able to run spark-expectation or define rules `Rules table` needs to exist and. 
-Format of a table needs to match. 
+For users to be able to run spark-expectations or define rules, the `Rules table` needs to exist.
+The format of the table needs to match the schema below. 
 
 The below SQL statements used three namespaces which works with Databricks Unity Catalog, but if you are using hive
 please update the namespaces accordingly and also provide necessary table metadata.
@@ -54,7 +54,7 @@ create table if not exists `catalog`.`schema`.`{product}_rules` (
     Fail: job fails if the rule fails. Applies for all 3 rule types.
 8. `tag` provide some tag name to dq rule example:  completeness, validity, uniqueness etc. 
 9. `description`  Long description for the rule
-10. `enable_for_source_dq_validation` when true, agg_dq and query_dq will run on the dataset before row_dq rules get excuted (and filter down the dataset).
+10. `enable_for_source_dq_validation` when true, agg_dq and query_dq will run on the dataset before row_dq rules get executed (and filter down the dataset).
 11. `enable_for_target_dq_validation` when true, agg_dq and query_dq will run on the dataset after row_dq rules ran.
 12. `is_active` true or false to indicate if the rule is active or not. 
 13. `enable_error_drop_alert` true or false. This determines if an alert notification should be sent out if row(s) is(are) dropped from the data set
@@ -68,7 +68,7 @@ The Spark Expectation process consists of three phases:
 
 1. When enable_for_source_dq_validation is true, execute agg_dq and query_dq on the source Dataframe
 2. If the first step is successful, proceed to run row_dq
-3. When enable_for_target_dq_validation is true, execute agg_dq and query_dq on the Dataframe resulting from row_dq. If the Dataframe does not cosists any records after phase 2, this step will not run.
+3. When enable_for_target_dq_validation is true, execute agg_dq and query_dq on the Dataframe resulting from row_dq. If the Dataframe does not contain any records after phase 2, this step will not run.
 
 ### Action If Failed Configuration For Data Quality Rules
 

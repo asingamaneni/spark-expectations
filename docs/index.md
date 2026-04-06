@@ -24,7 +24,7 @@ Proceed to [User Guide / Data Quality Rules](user_guide/data_quality_rules/) for
 
 ### Output
 
-Spark-Execution creates multiple tables to store output of the job. 
+Spark-Expectations creates multiple tables to store output of the job. 
 Creation of those tables is managed by the library and certain tables can be toggled or are only created if certain data quality rules exist.
 
 `Stats Table` is most important one and captures Data Quality metrics. 

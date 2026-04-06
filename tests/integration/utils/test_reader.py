@@ -756,12 +756,10 @@ def test_set_notification_param_zoom_missing_webhook():
     mock_context.spark = spark
     reader = SparkExpectationsReader(mock_context)
     
-    # Test zoom notification with missing webhook URL - need teams enabled first since zoom is nested
+    # Test zoom notification with missing webhook URL - zoom is now independent of teams
     notification_zoom_no_webhook = {
-        user_config.se_notifications_enable_teams: True,
-        user_config.se_notifications_teams_webhook_url: "https://teams.webhook.url",
         user_config.se_notifications_enable_zoom: True,
-        # Missing se_notifications_zoom_webhook_url - this will trigger the else branch (line 179)
+        # Missing se_notifications_zoom_webhook_url
     }
     
     # This should raise SparkExpectationsMiscException at line 179
@@ -866,10 +864,8 @@ def test_set_notification_param_zoom_complete():
     mock_context.spark = spark
     reader = SparkExpectationsReader(mock_context)
     
-    # Complete zoom notification configuration (needs teams first since it's nested)
+    # Complete zoom notification configuration - zoom is now independent of teams
     notification_zoom_complete = {
-        user_config.se_notifications_enable_teams: True,
-        user_config.se_notifications_teams_webhook_url: "https://teams.webhook.url",
         user_config.se_notifications_enable_zoom: True,
         user_config.se_notifications_zoom_webhook_url: "https://zoom.webhook.url",
         user_config.se_notifications_zoom_token: "zoom_token_123"
@@ -882,3 +878,54 @@ def test_set_notification_param_zoom_complete():
     mock_context.set_enable_zoom.assert_called_with(True)
     mock_context.set_zoom_webhook_url.assert_called_with("https://zoom.webhook.url")
     mock_context.set_zoom_token.assert_called_with("zoom_token_123")
+
+
+def test_set_notification_param_zoom_without_teams():
+    """Test that Zoom notifications can be enabled independently of Teams.
+
+    Previously, the Zoom configuration block was incorrectly nested inside the
+    Teams block, which meant Zoom could only be enabled when Teams was also
+    enabled. This test verifies that Zoom works independently.
+    """
+    from spark_expectations.config.user_config import Constants as user_config
+
+    mock_context = Mock(spec=SparkExpectationsContext)
+    mock_context.spark = spark
+    reader = SparkExpectationsReader(mock_context)
+
+    # Enable Zoom WITHOUT enabling Teams
+    notification_zoom_only = {
+        user_config.se_notifications_enable_zoom: True,
+        user_config.se_notifications_zoom_webhook_url: "https://zoom.webhook.url/only",
+        user_config.se_notifications_zoom_token: "zoom_only_token",
+    }
+
+    reader.set_notification_param(notification_zoom_only)
+
+    # Verify Zoom was configured
+    mock_context.set_enable_zoom.assert_called_with(True)
+    mock_context.set_zoom_webhook_url.assert_called_with("https://zoom.webhook.url/only")
+    mock_context.set_zoom_token.assert_called_with("zoom_only_token")
+
+    # Verify Teams was NOT configured
+    mock_context.set_enable_teams.assert_not_called()
+
+
+def test_set_notification_param_teams_error_message():
+    """Test that Teams missing webhook error message says 'teams', not 'slack'."""
+    from spark_expectations.config.user_config import Constants as user_config
+
+    mock_context = Mock(spec=SparkExpectationsContext)
+    mock_context.spark = spark
+    reader = SparkExpectationsReader(mock_context)
+
+    notification_teams_no_webhook = {
+        user_config.se_notifications_enable_teams: True,
+        # Missing teams webhook URL
+    }
+
+    with pytest.raises(
+        SparkExpectationsMiscException,
+        match="All params/variables required for teams notification is not configured or supplied",
+    ):
+        reader.set_notification_param(notification_teams_no_webhook)

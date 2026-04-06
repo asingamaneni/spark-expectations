@@ -149,20 +149,20 @@ class SparkExpectationsReader:
                     )
                 else:
                     raise SparkExpectationsMiscException(
-                        "All params/variables required for slack notification is not configured or supplied"
+                        "All params/variables required for teams notification is not configured or supplied"
                     )
 
-                if _notification_dict.get(user_config.se_notifications_enable_zoom) is True:
-                    if _notification_dict.get(user_config.se_notifications_zoom_webhook_url):
-                        self._context.set_enable_zoom(True)
-                        self._context.set_zoom_webhook_url(
-                            str(_notification_dict[user_config.se_notifications_zoom_webhook_url])
-                        )
-                        self._context.set_zoom_token(str(_notification_dict.get(user_config.se_notifications_zoom_token, "")))
-                    else:
-                        raise SparkExpectationsMiscException(
-                            "All params/variables required for zoom notification is not configured or supplied"
-                        )
+            if _notification_dict.get(user_config.se_notifications_enable_zoom) is True:
+                if _notification_dict.get(user_config.se_notifications_zoom_webhook_url):
+                    self._context.set_enable_zoom(True)
+                    self._context.set_zoom_webhook_url(
+                        str(_notification_dict[user_config.se_notifications_zoom_webhook_url])
+                    )
+                    self._context.set_zoom_token(str(_notification_dict.get(user_config.se_notifications_zoom_token, "")))
+                else:
+                    raise SparkExpectationsMiscException(
+                        "All params/variables required for zoom notification is not configured or supplied"
+                    )
             
             if _notification_dict.get(user_config.se_notifications_enable_pagerduty) is True:
                 if _notification_dict.get(user_config.se_notifications_pagerduty_integration_key):

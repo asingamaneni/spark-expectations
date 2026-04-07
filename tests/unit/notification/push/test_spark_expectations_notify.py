@@ -620,6 +620,57 @@ def test_notify_rules_exceeds_threshold_return_none(
     assert notify_handler.notify_rules_exceeds_threshold({}) == None
 
 
+@patch(
+    "spark_expectations.notifications.push.spark_expectations_notify.SparkExpectationsNotify.notify_on_exceeds_of_error_threshold_each_rules",
+    autospec=True,
+    spec_set=True,
+)
+def test_notify_rules_exceeds_threshold_multiple_rules_single_notification(
+    _mock_notification_hook,
+    _fixture_mock_context,
+):
+    """Test that multiple rules exceeding threshold produce exactly one consolidated notification.
+
+    Previously, the notification dispatch was inside the for-loop, causing
+    a separate (and cumulative) notification on every iteration. The fix moves
+    the dispatch after the loop so a single consolidated message is sent.
+    """
+    _fixture_mock_context.get_input_count = 10
+
+    _fixture_mock_context.get_summarized_row_dq_res = [
+        {"rule": "rule1", "failed_row_count": 5},
+        {"rule": "rule2", "failed_row_count": 8},
+    ]
+
+    notify_handler = SparkExpectationsNotify(_fixture_mock_context)
+
+    rules = {
+        "row_dq_rules": [
+            {
+                "rule": "rule1",
+                "enable_error_drop_alert": True,
+                "action_if_failed": "fail",
+                "error_drop_threshold": 10,  # 50% > 10% — exceeds
+            },
+            {
+                "rule": "rule2",
+                "enable_error_drop_alert": True,
+                "action_if_failed": "fail",
+                "error_drop_threshold": 10,  # 80% > 10% — exceeds
+            },
+        ]
+    }
+
+    notify_handler.notify_rules_exceeds_threshold(rules)
+
+    # Should be called exactly once with a consolidated message containing both rules
+    _mock_notification_hook.assert_called_once()
+    call_args = _mock_notification_hook.call_args
+    notification_body = call_args[0][1]  # positional arg: (self, message)
+    assert "rule1" in notification_body
+    assert "rule2" in notification_body
+
+
 def test_notify_rules_exceeds_threshold_exception(_fixture_mock_context):
     # Simulate the case where get_summarized_row_dq_res is None
     _fixture_mock_context.get_summarized_row_dq_res = [{"rule": "rule1", "failed_row_count": 10}]

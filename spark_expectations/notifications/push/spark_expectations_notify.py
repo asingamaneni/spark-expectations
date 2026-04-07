@@ -365,9 +365,9 @@ class SparkExpectationsNotify:
 
                 rule_name = rule["rule"]
                 rule_action = rule["action_if_failed"]
-                failed_row_count = int(rules_failed_row_count[rule_name] if rule_name in rules_failed_row_count else 0)
+                failed_row_count = int(rules_failed_row_count.get(rule_name, 0))
 
-                if failed_row_count is not None and failed_row_count > 0:
+                if failed_row_count > 0:
                     set_error_drop_threshold = int(rule["error_drop_threshold"])
                     error_drop_percentage = round((failed_row_count / self._context.get_input_count) * 100, 2)
 
@@ -377,10 +377,11 @@ class SparkExpectationsNotify:
                             failed_row_count=failed_row_count,
                             error_drop_percentage=error_drop_percentage,
                             action=rule_action,
-                            description= f"{rule_name} has been exceeded above the threshold "
+                            description=f"{rule_name} has been exceeded above the threshold ",
                         )
-                if notification_body != "":
-                    self.notify_on_exceeds_of_error_threshold_each_rules(notification_body)
+
+            if notification_body != "":
+                self.notify_on_exceeds_of_error_threshold_each_rules(notification_body)
 
         except Exception as e:
             raise SparkExpectationsMiscException(

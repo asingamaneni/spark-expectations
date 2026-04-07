@@ -321,7 +321,8 @@ class SparkExpectationsWriter:
                 _dq_res = {d["rule"]: d["failed_row_count"] for d in _row_dq_res}
 
                 for _rowdq_rule in _row_dq_expectations:
-                    # if _rowdq_rule["rule"] in _dq_res:
+                    if _rowdq_rule["rule"] not in _dq_res:
+                        continue
 
                     failed_row_count = _dq_res[_rowdq_rule["rule"]]
                     _row_dq_result.append(

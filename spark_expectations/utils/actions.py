@@ -93,7 +93,7 @@ class SparkExpectationsActions:
                     "column_name",
                     "priority",
                     "id_hash",
-                    "expectation_hash"
+                    "expectation_hash",
                 ]
             ]
         )
@@ -160,7 +160,7 @@ class SparkExpectationsActions:
 
         # pylint: disable=too-many-nested-blocks
         try:
-            
+
             if (
                 _dq_rule["rule_type"] == _context.get_agg_dq_rule_type_name
                 and _context.get_agg_dq_detailed_stats_status is True
@@ -470,7 +470,7 @@ class SparkExpectationsActions:
                     "Skipping aggregation results collection for streaming DataFrames."
                 )
                 return None
-            
+
             first_row = _df.first()
             if first_row is not None and f"meta_{_rule_type_name}_results" in _df.columns:
                 meta_results = first_row[f"meta_{_rule_type_name}_results"]
@@ -563,7 +563,9 @@ class SparkExpectationsActions:
                         )
                         current_date = datetime.now()
                         dq_end_time = datetime.strftime(current_date, "%Y-%m-%d %H:%M:%S")
-                        _agg_query_dq_output_list = list(_agg_query_dq_output_tuple) if _agg_query_dq_output_tuple else []
+                        _agg_query_dq_output_list = (
+                            list(_agg_query_dq_output_tuple) if _agg_query_dq_output_tuple else []
+                        )
                         _agg_query_dq_output_list.extend([dq_start_time, dq_end_time])
                         _agg_query_dq_output_tuple = tuple(_agg_query_dq_output_list)
                         _agg_query_dq_results.append(_agg_query_dq_output_tuple)

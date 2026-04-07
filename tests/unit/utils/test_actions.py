@@ -99,19 +99,25 @@ def test_default_error_table_naming():
 
     reader = SparkExpectationsReader(_context=ctx)
 
-    reader._get_rules_execution_settings = Mock(return_value={}) # avoid spark transformations inside _get_rules_execution_settings
+    reader._get_rules_execution_settings = Mock(
+        return_value={}
+    )  # avoid spark transformations inside _get_rules_execution_settings
 
-    reader.get_rules_from_df(rules_df=_mock_rules_df_empty(), target_table="my_db.target_table") # call get_rules_from_df which calls sets self._context.set_error_table_name(f"{target_table}_error")
+    reader.get_rules_from_df(
+        rules_df=_mock_rules_df_empty(), target_table="my_db.target_table"
+    )  # call get_rules_from_df which calls sets self._context.set_error_table_name(f"{target_table}_error")
 
-    assert ctx.get_error_table_name == "my_db.target_table_error" # validate the default error table name for 'target_table'
+    assert (
+        ctx.get_error_table_name == "my_db.target_table_error"
+    )  # validate the default error table name for 'target_table'
     assert ctx.get_error_table_name_user_specified is False
 
 
 def test_error_table_override():
-    """ Expectation: different_catalog.my_override_error is used as the error table instead of the default my_db.target_table_error"""
-    target_table_override= "different_catalog.my_override_error" # Define the error table name we want
+    """Expectation: different_catalog.my_override_error is used as the error table instead of the default my_db.target_table_error"""
+    target_table_override = "different_catalog.my_override_error"  # Define the error table name we want
     ctx = SparkExpectationsContext(product_id="p1", spark=Mock())
-    ctx.set_error_table_name(target_table_override) #  set_error_table_name as different_catalog.my_override_error
+    ctx.set_error_table_name(target_table_override)  #  set_error_table_name as different_catalog.my_override_error
 
     actions = Mock()
     writer = Mock()
@@ -183,10 +189,10 @@ def test_agg_dq_range_null_aggregation_raises_value_error():
     _mock_agg_result.collect.return_value = [MagicMock(__getitem__=lambda self, idx: None)]
     _mock_df.agg.return_value = _mock_agg_result
 
-    with pytest.raises(SparkExpectationsMiscException, match=r"error occurred while running agg_query_dq_detailed_result"):
-        SparkExpectationsActions.agg_query_dq_detailed_result(
-            _mock_context, _range_rule, _mock_df, []
-        )
+    with pytest.raises(
+        SparkExpectationsMiscException, match=r"error occurred while running agg_query_dq_detailed_result"
+    ):
+        SparkExpectationsActions.agg_query_dq_detailed_result(_mock_context, _range_rule, _mock_df, [])
 
 
 def test_multi_decorator_default_updates():

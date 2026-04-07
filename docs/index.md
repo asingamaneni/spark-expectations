@@ -24,12 +24,25 @@ Proceed to [User Guide / Data Quality Rules](user_guide/data_quality_rules/) for
 
 ### Output
 
-Spark-Execution creates multiple tables to store output of the job. 
+Spark-Expectations creates multiple tables to store output of the job. 
 Creation of those tables is managed by the library and certain tables can be toggled or are only created if certain data quality rules exist.
 
 `Stats Table` is most important one and captures Data Quality metrics. 
 Check [User Guide / Data Quality Metrics](user_guide/data_quality_metrics/) for more information about it but also other tables shown in SE diagram.
 
+
+### Compatibility
+
+Spark-Expectations supports a range of PySpark and Python versions. Below is the current compatibility matrix:
+
+| Component | Supported Versions |
+|---|---|
+| Python | 3.9 - 3.13 |
+| PySpark | 3.0.0 - 4.0.0 |
+| Java | 17 (Temurin recommended) |
+| Scala | 2.12, 2.13 |
+
+When using PySpark 4.0, be aware that ANSI mode is enabled by default. Spark-Expectations handles type comparisons internally and is designed to work correctly under ANSI mode. If you encounter casting errors in your DQ rules, ensure your rule expressions use explicit type casts (e.g., `CAST(column AS DOUBLE)`) rather than relying on implicit conversions.
 
 ### Integrations
 

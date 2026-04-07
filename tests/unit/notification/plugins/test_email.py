@@ -77,6 +77,58 @@ def test_send_notification_exception(_mock_context):
 
 
 @patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
+def test_send_notification_quit_called_on_sendmail_failure(_mock_context):
+    """Test that server.quit() is called even when sendmail raises an exception,
+    ensuring the SMTP connection is not leaked."""
+    email_handler = SparkExpectationsEmailPluginImpl()
+    _mock_context.get_enable_mail = True
+    _mock_context.get_mail_from = "sender@example.com"
+    _mock_context.get_to_mail = "receiver@example.com"
+    _mock_context.get_mail_subject = "Test Email"
+    _mock_context.get_mail_smtp_server = "mailhost.example.com"
+    _mock_context.get_mail_smtp_port = 587
+    _mock_context.get_enable_smtp_server_auth = False
+
+    mock_config_args = {"message": "Test Email Body"}
+
+    with (
+        patch("spark_expectations.notifications.plugins.email.smtplib.SMTP") as mock_smtp,
+        patch("spark_expectations.notifications.plugins.email.MIMEMultipart") as _mock_mltp,
+        pytest.raises(SparkExpectationsEmailException),
+    ):
+        mock_smtp.return_value.sendmail.side_effect = Exception("SMTP sendmail failed")
+        email_handler.send_notification(_context=_mock_context, _config_args=mock_config_args)
+
+    # The critical assertion: quit() must be called even though sendmail raised
+    mock_smtp.return_value.quit.assert_called()
+
+
+@patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
+def test_send_notification_quit_called_on_starttls_failure(_mock_context):
+    """Test that server.quit() is called even when starttls raises an exception."""
+    email_handler = SparkExpectationsEmailPluginImpl()
+    _mock_context.get_enable_mail = True
+    _mock_context.get_mail_from = "sender@example.com"
+    _mock_context.get_to_mail = "receiver@example.com"
+    _mock_context.get_mail_subject = "Test Email"
+    _mock_context.get_mail_smtp_server = "mailhost.example.com"
+    _mock_context.get_mail_smtp_port = 587
+
+    mock_config_args = {"message": "Test Email Body"}
+
+    with (
+        patch("spark_expectations.notifications.plugins.email.smtplib.SMTP") as mock_smtp,
+        patch("spark_expectations.notifications.plugins.email.MIMEMultipart") as _mock_mltp,
+        pytest.raises(SparkExpectationsEmailException),
+    ):
+        mock_smtp.return_value.starttls.side_effect = Exception("TLS handshake failed")
+        email_handler.send_notification(_context=_mock_context, _config_args=mock_config_args)
+
+    # quit() must be called to close the socket even though starttls failed
+    mock_smtp.return_value.quit.assert_called()
+
+
+@patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
 def test_send_notification_with_smtp_auth(_mock_context):
     # arrange
     email_handler = SparkExpectationsEmailPluginImpl()
@@ -638,7 +690,7 @@ def test_process_message_with_custom_template(_mock_context, mock_fs_loader, moc
     mail_content, content_type = email_handler._process_message(_mock_context, config_args)
 
     # Check that the template was used
-    mock_fs_loader.assert_called_once_with("spark_expectations","config/templates")
+    mock_fs_loader.assert_called_once_with("spark_expectations", "config/templates")
     mock_env.assert_called_once_with(loader=mock_fs_loader.return_value)
     mock_env.return_value.get_template.assert_called_once_with("custom_email_alert_template.jinja")
     mock_template.render.assert_called_once()
@@ -649,7 +701,7 @@ def test_process_message_with_custom_template(_mock_context, mock_fs_loader, moc
 
     # Verify the message data was parsed correctly
     call_args = mock_template.render.call_args[0]
-    assert call_args[0] == {'product_id': 'product_id1', 'table_name': 'test_table'}
+    assert call_args[0] == {"product_id": "product_id1", "table_name": "test_table"}
 
 
 # test template from user config when type is custom
@@ -689,7 +741,8 @@ def test_process_message_with_custom_template(_mock_context, mock_base_loader, m
 
     # Verify the message data was parsed correctly
     call_args = mock_template.render.call_args[0]
-    assert call_args[0] == {'product_id': 'product_id1', 'table_name': 'test_table'}
+    assert call_args[0] == {"product_id": "product_id1", "table_name": "test_table"}
+
 
 # test custom email throws json error
 @patch("spark_expectations.notifications.plugins.email.Environment")
@@ -702,10 +755,7 @@ def test_process_message_invalid_json_logs_and_fallback(mock_log, mock_fs_loader
     context.get_custom_default_template = None
 
     # Simulate invalid JSON in mail_content
-    config_args = {
-        "message": "CUSTOM EMAIL\n{'invalid': unquoted_value}",  # Not valid JSON
-        "content_type": "plain"
-    }
+    config_args = {"message": "CUSTOM EMAIL\n{'invalid': unquoted_value}", "content_type": "plain"}  # Not valid JSON
 
     mail_content, content_type = email_handler._process_message(context, config_args)
 
@@ -717,6 +767,7 @@ def test_process_message_invalid_json_logs_and_fallback(mock_log, mock_fs_loader
     assert mail_content.startswith("Error: Invalid JSON format in custom email content.")
     assert "Original content:" in mail_content
     assert content_type == "plain"
+
 
 # test custom email template rendering throws error
 @patch("spark_expectations.notifications.plugins.email.Environment")
@@ -731,7 +782,7 @@ def test_process_message_template_render_exception(mock_log, mock_fs_loader, moc
     # Valid JSON, but template.render will raise a general Exception
     config_args = {
         "message": 'CUSTOM EMAIL\n{"product_id": "product_id1", "table_name": "test_table"}',
-        "content_type": "plain"
+        "content_type": "plain",
     }
 
     # Setup template mock to raise Exception on render

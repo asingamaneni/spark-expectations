@@ -41,6 +41,7 @@ def get_spark_minor_version() -> float:
 
 
 MIN_SPARK_VERSION_FOR_CONNECT: float = 3.4
+MIN_SPARK_VERSION_FOR_ANSI_DEFAULT: float = 4.0
 SPARK_MINOR_VERSION: float = get_spark_minor_version()
 
 
@@ -65,6 +66,7 @@ if check_if_pyspark_connect_is_supported():
     # Import the connect module if the current version of PySpark supports it
     from pyspark.sql.connect.dataframe import DataFrame as ConnectDataFrame
     from pyspark.sql.connect.session import SparkSession as ConnectSparkSession
+
     DataFrame: TypeAlias = Union[sql.DataFrame, ConnectDataFrame]
     SparkSession: TypeAlias = Union[sql.SparkSession, ConnectSparkSession]
 else:
@@ -74,11 +76,7 @@ else:
 # Type alias for the DQ process function returned by execute_dq_process
 DQProcessFunc: TypeAlias = Callable[..., Tuple["DataFrame", Optional[List[Dict[str, str]]], int, str]]
 
-__all__ = [
-    "SparkExpectations",
-    "WrappedDataFrameWriter",
-    "WrappedDataFrameStreamWriter"
-]
+__all__ = ["SparkExpectations", "WrappedDataFrameWriter", "WrappedDataFrameStreamWriter"]
 
 
 @dataclass
@@ -103,6 +101,31 @@ class SparkExpectations:
     debugger: bool = False
     stats_streaming_options: Optional[Dict[str, Union[str, bool]]] = None
 
+    def _warn_if_ansi_mode_enabled(self) -> None:
+        """Log a warning when PySpark ANSI mode is active.
+
+        Starting with PySpark 4.0, ``spark.sql.ansi.enabled`` defaults to
+        ``true``.  Under ANSI mode, implicit casts that lose data (e.g.
+        ``CAST('abc' AS INT)``) raise exceptions instead of returning NULL.
+        This can cause DQ rules that rely on safe-cast behaviour to fail
+        unexpectedly.  Users are advised to use ``try_cast`` in rule
+        expressions or disable ANSI mode explicitly if needed.
+        """
+        if SPARK_MINOR_VERSION >= MIN_SPARK_VERSION_FOR_ANSI_DEFAULT:
+            try:
+                ansi_enabled = self.spark.conf.get("spark.sql.ansi.enabled", "true")
+                if ansi_enabled.lower() == "true":
+                    _log.warning(
+                        "PySpark %.1f detected with ANSI mode enabled (default in 4.0+). "
+                        "DQ rules using CAST may raise exceptions on invalid data instead "
+                        "of returning NULL. Consider using try_cast in rule expressions or "
+                        "set spark.sql.ansi.enabled=false if needed.",
+                        SPARK_MINOR_VERSION,
+                    )
+            except Exception as e:
+                # Config access may fail in some environments; don't block init
+                _log.debug("Could not check ANSI mode setting: %s", e)
+
     def _add_hash_columns(self, df: "DataFrame") -> "DataFrame":
         """
         Add hash columns to the rules DataFrame.
@@ -115,16 +138,17 @@ class SparkExpectations:
         """
         return df.withColumn(
             "id_hash",
-            md5(concat_ws("|", 
-                coalesce(trim(col("product_id")), lit("")), 
-                coalesce(trim(col("table_name")), lit("")), 
-                coalesce(trim(col("rule")), lit("")),
-                coalesce(trim(col("rule_type")), lit(""))))
-        ).withColumn(
-            "expectation_hash",
-            md5(col("expectation"))
-        )
-    
+            md5(
+                concat_ws(
+                    "|",
+                    coalesce(trim(col("product_id")), lit("")),
+                    coalesce(trim(col("table_name")), lit("")),
+                    coalesce(trim(col("rule")), lit("")),
+                    coalesce(trim(col("rule_type")), lit("")),
+                )
+            ),
+        ).withColumn("expectation_hash", md5(col("expectation")))
+
     def _check_missing_columns(self, required_columns: set) -> None:
         """
         Validate that the rules DataFrame contains all required columns.
@@ -138,7 +162,7 @@ class SparkExpectations:
         """
         actual_columns = set(self.rules_df.columns)
         missing_columns = required_columns - actual_columns
-        
+
         if missing_columns:
             raise SparkExpectationsUserInputOrConfigInvalidException(
                 f"rules_df is missing required columns: {sorted(missing_columns)}"
@@ -156,16 +180,13 @@ class SparkExpectations:
                 NULL or empty string values.
         """
         null_or_empty_check_expr = [
-            F.sum(
-                F.when(
-                    F.col(c).isNull() | (F.trim(F.col(c)) == ""), 1
-                ).otherwise(0)
-            ).alias(c)
-            for c in columns if c in self.rules_df.columns
+            F.sum(F.when(F.col(c).isNull() | (F.trim(F.col(c)) == ""), 1).otherwise(0)).alias(c)
+            for c in columns
+            if c in self.rules_df.columns
         ]
         invalid_counts = self.rules_df.select(null_or_empty_check_expr).collect()[0]
         columns_with_invalid = [c for c in columns if c in invalid_counts and invalid_counts[c] > 0]
-        
+
         if columns_with_invalid:
             raise SparkExpectationsUserInputOrConfigInvalidException(
                 f"rules_df contains NULL or empty values in required columns: {sorted(columns_with_invalid)}"
@@ -183,15 +204,12 @@ class SparkExpectations:
             raise SparkExpectationsUserInputOrConfigInvalidException(
                 "rules_df is empty. At least one rule must be provided."
             )
-        
+
         required_columns = {"product_id", "table_name", "rule", "rule_type"}
         self._check_missing_columns(required_columns)
         self._check_null_or_empty_values(required_columns)
 
-    def _check_serverless_config(
-        self, 
-        user_conf: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]]
-    ) -> None:
+    def _check_serverless_config(self, user_conf: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]]) -> None:
         """
         Check if running in serverless mode and persist rules DataFrame if not.
 
@@ -207,8 +225,7 @@ class SparkExpectations:
             self.rules_df = self.rules_df.persist(StorageLevel.MEMORY_AND_DISK)
 
     def _build_config_dicts(
-        self,
-        user_conf: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]]
+        self, user_conf: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]]
     ) -> Tuple[Dict[str, Union[str, int, bool, Dict[str, str]]], Dict[str, Any]]:
         """
         Build notification and stats streaming configuration dictionaries.
@@ -227,9 +244,7 @@ class SparkExpectations:
                   including Kafka settings.
         """
         _default_notification_dict, _default_stats_streaming_dict = get_config_dict(self.spark, user_conf)
-        _default_notification_dict[
-            user_config.querydq_output_custom_table_name
-        ] = f"{self.stats_table}_querydq_output"
+        _default_notification_dict[user_config.querydq_output_custom_table_name] = f"{self.stats_table}_querydq_output"
 
         _notification_dict: Dict[str, Union[str, int, bool, Dict[str, str]]] = (
             {**_default_notification_dict, **user_conf} if user_conf else _default_notification_dict
@@ -252,13 +267,15 @@ class SparkExpectations:
                 configuration options such as custom config enable flag and
                 bootstrap server address.
         """
-        enable_kafka_custom_config = se_stats_streaming_dict.get('se.streaming.stats.kafka.custom.config.enable', False)
+        enable_kafka_custom_config = se_stats_streaming_dict.get("se.streaming.stats.kafka.custom.config.enable", False)
         self._context.set_se_streaming_stats_kafka_custom_config_enable(
             enable_kafka_custom_config if isinstance(enable_kafka_custom_config, bool) else False
         )
 
-        if 'se.streaming.stats.kafka.bootstrap.server' in se_stats_streaming_dict:
-            self._context.set_se_streaming_stats_kafka_bootstrap_server(str(se_stats_streaming_dict['se.streaming.stats.kafka.bootstrap.server']))
+        if "se.streaming.stats.kafka.bootstrap.server" in se_stats_streaming_dict:
+            self._context.set_se_streaming_stats_kafka_bootstrap_server(
+                str(se_stats_streaming_dict["se.streaming.stats.kafka.bootstrap.server"])
+            )
 
     def _set_notification_configs(self, notification_dict: Dict[str, Union[str, int, bool, Dict[str, str]]]) -> None:
         """
@@ -273,16 +290,16 @@ class SparkExpectations:
                 and job metadata.
         """
         enable_error_table = notification_dict.get(user_config.se_enable_error_table, True)
-        self._context.set_se_enable_error_table(
-            enable_error_table if isinstance(enable_error_table, bool) else True
-        )
+        self._context.set_se_enable_error_table(enable_error_table if isinstance(enable_error_table, bool) else True)
 
         dq_rules_params = notification_dict.get(user_config.se_dq_rules_params, {})
         self._context.set_dq_rules_params(dq_rules_params if isinstance(dq_rules_params, dict) else {})
 
         self._context.set_se_job_metadata(notification_dict.get(user_config.se_job_metadata))
 
-    def _set_agg_query_detailed_stats(self, notification_dict: Dict[str, Union[str, int, bool, Dict[str, str]]]) -> None:
+    def _set_agg_query_detailed_stats(
+        self, notification_dict: Dict[str, Union[str, int, bool, Dict[str, str]]]
+    ) -> None:
         """
         Configure detailed statistics settings for aggregate and query DQ.
 
@@ -327,7 +344,7 @@ class SparkExpectations:
     def _set_notification_context(
         self,
         notification_dict: Dict[str, Union[str, int, bool, Dict[str, str]]],
-        se_stats_streaming_dict: Dict[str, Any]
+        se_stats_streaming_dict: Dict[str, Any],
     ) -> None:
         """
         Configure notification context settings in the SparkExpectations context.
@@ -403,14 +420,16 @@ class SparkExpectations:
         self._context.set_notification_on_start(_notification_on_start)
         self._context.set_notification_on_completion(_notification_on_completion)
         self._context.set_notification_on_fail(_notification_on_fail)
-        self._context.set_notification_on_error_drop_exceeds_threshold_breach(_notification_on_error_drop_exceeds_threshold_breach)
-        self._context.set_notifications_on_rules_action_if_failed_set_ignore(_notifications_on_rules_action_if_failed_set_ignore)
+        self._context.set_notification_on_error_drop_exceeds_threshold_breach(
+            _notification_on_error_drop_exceeds_threshold_breach
+        )
+        self._context.set_notifications_on_rules_action_if_failed_set_ignore(
+            _notifications_on_rules_action_if_failed_set_ignore
+        )
 
         self._context.set_se_streaming_stats_dict(se_stats_streaming_dict)
         self._context.set_job_metadata(_job_metadata)
-        self._context.set_min_priority_slack(
-            str(notification_dict[min_priority_slack])
-        )
+        self._context.set_min_priority_slack(str(notification_dict[min_priority_slack]))
         self._context.set_error_drop_threshold(_error_drop_threshold)
 
     def _check_invalid_rules(self, df: "DataFrame", rules: List[Dict]) -> None:
@@ -434,18 +453,13 @@ class SparkExpectations:
             ]
             # pylint: disable=logging-too-many-args
             _log.warning(
-                "Some rules failed validation: %s. "
-                "Check earlier log messages for details on each invalid rule.",
-                failed_rules
+                "Some rules failed validation: %s. " "Check earlier log messages for details on each invalid rule.",
+                failed_rules,
             )
         else:
             _log.info("Validation for rules completed successfully - all rules are valid")
 
-    def _init_default_values(
-        self,
-        input_count: int,
-        expectations: Dict[str, List[Dict[str, str]]]
-    ) -> None:
+    def _init_default_values(self, input_count: int, expectations: Dict[str, List[Dict[str, str]]]) -> None:
         """
         Initialize context variables with default values before each DQ run.
 
@@ -488,7 +502,7 @@ class SparkExpectations:
         self._context._row_dq_end_time = None
 
         self._context.set_input_count(input_count)
-    
+
     def _use_temp_table(self, table_name: str, df: "DataFrame") -> "DataFrame":
         """
         Write DataFrame to a temporary table and read it back to break the Spark plan.
@@ -519,13 +533,8 @@ class SparkExpectations:
         _df = _df.select(source_columns)
         _log.info("Read from temp table completed")
         return _df
-    
-    def _check_streaming_agg_query_dq(
-        self,
-        df: "DataFrame",
-        source_agg_dq: bool,
-        source_query_dq: bool
-    ) -> None:
+
+    def _check_streaming_agg_query_dq(self, df: "DataFrame", source_agg_dq: bool, source_query_dq: bool) -> None:
         """
         Log warnings if aggregate or query DQ rules are provided for streaming DataFrames.
 
@@ -544,12 +553,8 @@ class SparkExpectations:
                 _log.info("agg_dq expectations provided. Not applicable for streaming dataframe.")
             if source_query_dq:
                 _log.info("query_dq expectations provided. Not applicable for streaming dataframe.")
-    
-    def _run_source_agg_dq_batch(
-        self,
-        df: "DataFrame",
-        func_process: DQProcessFunc
-    ) -> None:
+
+    def _run_source_agg_dq_batch(self, df: "DataFrame", func_process: DQProcessFunc) -> None:
         """
         Execute aggregate-level data quality rules on the source DataFrame.
 
@@ -560,9 +565,7 @@ class SparkExpectations:
             df: The source DataFrame to validate.
             func_process: The DQ process function that executes the validation rules.
         """
-        _log.info(
-            "started processing data quality rules for agg level expectations on source dataframe"
-        )
+        _log.info("started processing data quality rules for agg level expectations on source dataframe")
         self._context.set_source_agg_dq_status("Failed")
         self._context.set_source_agg_dq_start_time()
         (
@@ -578,15 +581,9 @@ class SparkExpectations:
         self._context.set_source_agg_dq_status(status)
         self._context.set_source_agg_dq_end_time()
 
-        _log.info(
-            "ended processing data quality rules for agg level expectations on source dataframe"
-        )
+        _log.info("ended processing data quality rules for agg level expectations on source dataframe")
 
-    def _run_source_query_dq_batch(
-        self,
-        df: "DataFrame",
-        func_process: DQProcessFunc
-    ) -> None:
+    def _run_source_query_dq_batch(self, df: "DataFrame", func_process: DQProcessFunc) -> None:
         """
         Execute query-level data quality rules on the source DataFrame.
 
@@ -598,9 +595,7 @@ class SparkExpectations:
             df: The source DataFrame to validate.
             func_process: The DQ process function that executes the validation rules.
         """
-        _log.info(
-            "started processing data quality rules for query level expectations on source dataframe"
-        )
+        _log.info("started processing data quality rules for query level expectations on source dataframe")
         self._context.set_source_query_dq_status("Failed")
         self._context.set_source_query_dq_start_time()
 
@@ -616,15 +611,10 @@ class SparkExpectations:
         )
         self._context.set_source_query_dq_status(status)
         self._context.set_source_query_dq_end_time()
-        _log.info(
-            "ended processing data quality rules for query level expectations on source dataframe"
-        )
+        _log.info("ended processing data quality rules for query level expectations on source dataframe")
 
     def _run_row_dq(
-        self,
-        df: "DataFrame",
-        func_process: DQProcessFunc,
-        target_table_view: str
+        self, df: "DataFrame", func_process: DQProcessFunc, target_table_view: str
     ) -> Tuple["DataFrame", int, int]:
         """
         Execute row-level data quality rules on the DataFrame.
@@ -647,8 +637,8 @@ class SparkExpectations:
         _log.info("started processing data quality rules for row level expectations")
         self._context.set_row_dq_status("Failed")
         self._context.set_row_dq_start_time()
-    
-        (_row_dq_df, _, _error_count, status) = func_process(
+
+        _row_dq_df, _, _error_count, status = func_process(
             df,
             self._context.get_row_dq_rule_type_name,
             row_dq_flag=True,
@@ -665,9 +655,7 @@ class SparkExpectations:
 
         return _row_dq_df, _error_count, _output_count
 
-    def _call_row_dq_notifications(
-        self
-    ) -> List[Dict[str, Any]]:
+    def _call_row_dq_notifications(self) -> List[Dict[str, Any]]:
         """
         Send notifications based on row DQ results and error thresholds.
 
@@ -702,11 +690,7 @@ class SparkExpectations:
             return []
 
     def _run_target_agg_dq_batch(
-        self,
-        func_process: DQProcessFunc,
-        row_dq_df: "DataFrame",
-        error_count: int,
-        output_count: int
+        self, func_process: DQProcessFunc, row_dq_df: "DataFrame", error_count: int, output_count: int
     ) -> None:
         """
         Execute aggregate-level data quality rules on the final/target DataFrame.
@@ -721,12 +705,10 @@ class SparkExpectations:
             error_count: The count of error records from row DQ.
             output_count: The count of output records from row DQ.
         """
-        _log.info(
-            "started processing data quality rules for agg level expectations on final dataframe"
-        )
+        _log.info("started processing data quality rules for agg level expectations on final dataframe")
         self._context.set_final_agg_dq_status("Failed")
         self._context.set_final_agg_dq_start_time()
-    
+
         (
             _final_dq_df,
             _dq_final_agg_results,
@@ -741,9 +723,7 @@ class SparkExpectations:
         )
         self._context.set_final_agg_dq_status(status)
         self._context.set_final_agg_dq_end_time()
-        _log.info(
-            "ended processing data quality rules for agg level expectations on final dataframe"
-        )
+        _log.info("ended processing data quality rules for agg level expectations on final dataframe")
 
     def _run_target_query_dq_batch(
         self,
@@ -751,7 +731,7 @@ class SparkExpectations:
         row_dq_df: "DataFrame",
         target_table_view: str,
         error_count: int,
-        output_count: int
+        output_count: int,
     ) -> None:
         """
         Execute query-level data quality rules on the final/target DataFrame.
@@ -768,9 +748,7 @@ class SparkExpectations:
             error_count: The count of error records from row DQ.
             output_count: The count of output records from row DQ.
         """
-        _log.info(
-            "started processing data quality rules for query level expectations on final dataframe"
-        )
+        _log.info("started processing data quality rules for query level expectations on final dataframe")
         self._context.set_final_query_dq_status("Failed")
         self._context.set_final_query_dq_start_time()
 
@@ -791,14 +769,10 @@ class SparkExpectations:
         self._context.set_final_query_dq_status(status)
         self._context.set_final_query_dq_end_time()
 
-        _log.info(
-            "ended processing data quality rules for query level expectations on final dataframe"
-        )
+        _log.info("ended processing data quality rules for query level expectations on final dataframe")
 
     def _check_ignore_rules_result(
-        self,
-        failed_ignored_row_dq_res: List[Dict[str, Any]],
-        ignore_rules_result: List[Optional[List[Dict[str, Any]]]]
+        self, failed_ignored_row_dq_res: List[Dict[str, Any]], ignore_rules_result: List[Optional[List[Dict[str, Any]]]]
     ) -> List[Dict[str, Any]]:
         """
         Collect and flatten all ignored rule results from various DQ stages.
@@ -830,7 +804,7 @@ class SparkExpectations:
                     self._context.get_source_agg_dq_result,
                 ]
             )
-        
+
         if ignore_rules_result:
             flattened_ignore_rules_result: List[Dict[str, Any]] = [
                 item for sublist in filter(None, ignore_rules_result) for item in sublist
@@ -887,6 +861,7 @@ class SparkExpectations:
         self._context.set_dq_stats_table_name(self.stats_table)
         self._context.set_dq_detailed_stats_table_name(f"{self.stats_table}_detailed")
         self._validate_rules()
+        self._warn_if_ansi_mode_enabled()
         self.rules_df = self._add_hash_columns(self.rules_df)
         # self.rules_df = self.rules_df.persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -916,7 +891,7 @@ class SparkExpectations:
         Returns:
             Any: Returns a function which applied the expectations on dataset
         """
-        
+
         def _except(func: Any) -> Any:
 
             self._check_serverless_config(user_conf)
@@ -944,7 +919,7 @@ class SparkExpectations:
             self._context.set_dq_expectations(expectations)
             self._context.set_rules_execution_settings_config(rules_execution_settings)
             self._context.set_querydq_secondary_queries(dq_queries_dict)
-            
+
             @self._notification.send_notification_decorator
             @self._statistics_decorator.collect_stats_decorator
             @functools.wraps(func)
@@ -973,7 +948,7 @@ class SparkExpectations:
                         self._context.set_table_name(table_name)
                         if write_to_temp_table:
                             _df = self._use_temp_table(table_name, _df)
-                            
+
                         func_process = self._process.execute_dq_process(
                             _context=self._context,
                             _actions=self.actions,
@@ -987,22 +962,28 @@ class SparkExpectations:
 
                         if _source_agg_dq is True and not _df.isStreaming:
                             self._run_source_agg_dq_batch(_df, func_process)
-                           
+
                         if _source_query_dq is True and not _df.isStreaming:
                             self._run_source_query_dq_batch(_df, func_process)
-                           
-                        if _row_dq is True:                            
-                            _row_dq_df, _error_count, _output_count = self._run_row_dq(_df, func_process, _target_table_view)
+
+                        if _row_dq is True:
+                            _row_dq_df, _error_count, _output_count = self._run_row_dq(
+                                _df, func_process, _target_table_view
+                            )
                             failed_ignored_row_dq_res = self._call_row_dq_notifications()
                             _log.info("ended processing data quality rules for row level expectations")
 
                         if _row_dq is True and _target_agg_dq is True and not _df.isStreaming:
                             self._run_target_agg_dq_batch(func_process, _row_dq_df, _error_count, _output_count)
-                            
+
                         if _row_dq is True and _target_query_dq is True and not _df.isStreaming:
-                            self._run_target_query_dq_batch(func_process, _row_dq_df, _target_table_view, _error_count, _output_count)
-                            
-                        flattened_ignore_rules_result = self._check_ignore_rules_result(failed_ignored_row_dq_res, _ignore_rules_result)
+                            self._run_target_query_dq_batch(
+                                func_process, _row_dq_df, _target_table_view, _error_count, _output_count
+                            )
+
+                        flattened_ignore_rules_result = self._check_ignore_rules_result(
+                            failed_ignored_row_dq_res, _ignore_rules_result
+                        )
                         if flattened_ignore_rules_result:
                             self._notification.notify_on_ignore_rules(flattened_ignore_rules_result)
 
@@ -1021,7 +1002,7 @@ class SparkExpectations:
                             "error occurred while processing spark "
                             "expectations due to given dataframe is not type of dataframe"
                         )
-                        
+
                     return streaming_query if streaming_query is not None else _row_dq_df
 
                 except Exception as e:
@@ -1188,7 +1169,7 @@ class WrappedDataFrameStreamWriter:
     def trigger(self, **trigger_options: str) -> "WrappedDataFrameStreamWriter":
         """
         Set the trigger for the streaming query.
-        
+
         Common trigger types:
         - processingTime: "10 seconds" (process every 10 seconds)
         - once: True (process available data once and stop)
@@ -1196,12 +1177,13 @@ class WrappedDataFrameStreamWriter:
         """
         self._trigger.update(trigger_options)
         return self
-    @overload  
-    def partitionBy(self, *cols: str) -> "WrappedDataFrameStreamWriter": ... # noqa: N802
-    
-    @overload  # type: ignore   
-    def partitionBy(self, __cols: list[str]) -> "WrappedDataFrameStreamWriter": ... # noqa: N802
-    
+
+    @overload
+    def partitionBy(self, *cols: str) -> "WrappedDataFrameStreamWriter": ...  # noqa: N802
+
+    @overload  # type: ignore
+    def partitionBy(self, __cols: list[str]) -> "WrappedDataFrameStreamWriter": ...  # noqa: N802
+
     def partitionBy(self, *columns: str | List[str]) -> "WrappedDataFrameStreamWriter":  # noqa: N802
         """Set the columns by which the data should be partitioned."""
         # Handle case where a single list is passed: partitionBy(["col1", "col2"])

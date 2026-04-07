@@ -93,7 +93,7 @@ class SparkExpectationsActions:
                     "column_name",
                     "priority",
                     "id_hash",
-                    "expectation_hash"
+                    "expectation_hash",
                 ]
             ]
         )
@@ -160,7 +160,7 @@ class SparkExpectationsActions:
 
         # pylint: disable=too-many-nested-blocks
         try:
-            
+
             if (
                 _dq_rule["rule_type"] == _context.get_agg_dq_rule_type_name
                 and _context.get_agg_dq_detailed_stats_status is True
@@ -252,7 +252,30 @@ class SparkExpectationsActions:
 
                         _agg_dq_expectation_cond_expr = expr(_agg_dq_expectation_aggstring)
 
-                        _agg_dq_actual_count_value = int(df.agg(_agg_dq_expectation_cond_expr).collect()[0][0])
+                        _agg_dq_actual_count_value_raw = df.agg(_agg_dq_expectation_cond_expr).collect()[0][0]
+
+                        if _agg_dq_actual_count_value_raw is None:
+                            raise ValueError(
+                                f"Range-based aggregation result is None for rule '{_dq_rule['rule']}' "
+                                f"(possibly due to empty data)."
+                            )
+
+                        if isinstance(_agg_dq_actual_count_value_raw, (int, float)):
+                            if (
+                                isinstance(_agg_dq_actual_count_value_raw, float)
+                                and not _agg_dq_actual_count_value_raw.is_integer()
+                            ):
+                                _log.warning(
+                                    f"Aggregation result {_agg_dq_actual_count_value_raw} for rule "
+                                    f"'{_dq_rule['rule']}' is a non-integer float and will be rounded."
+                                )
+                            _agg_dq_actual_count_value = round(_agg_dq_actual_count_value_raw)
+                        else:
+                            raise TypeError(
+                                f"Unexpected type for range-based aggregation result: "
+                                f"{type(_agg_dq_actual_count_value_raw)}, "
+                                f"value: {_agg_dq_actual_count_value_raw}"
+                            )
 
                         _agg_dq_expression_str_lower = (
                             str(_agg_dq_actual_count_value) + _agg_dq_expectation_expr_lowerbound
@@ -447,7 +470,7 @@ class SparkExpectationsActions:
                     "Skipping aggregation results collection for streaming DataFrames."
                 )
                 return None
-            
+
             first_row = _df.first()
             if first_row is not None and f"meta_{_rule_type_name}_results" in _df.columns:
                 meta_results = first_row[f"meta_{_rule_type_name}_results"]
@@ -540,7 +563,9 @@ class SparkExpectationsActions:
                         )
                         current_date = datetime.now()
                         dq_end_time = datetime.strftime(current_date, "%Y-%m-%d %H:%M:%S")
-                        _agg_query_dq_output_list = list(_agg_query_dq_output_tuple) if _agg_query_dq_output_tuple else []
+                        _agg_query_dq_output_list = (
+                            list(_agg_query_dq_output_tuple) if _agg_query_dq_output_tuple else []
+                        )
                         _agg_query_dq_output_list.extend([dq_start_time, dq_end_time])
                         _agg_query_dq_output_tuple = tuple(_agg_query_dq_output_list)
                         _agg_query_dq_results.append(_agg_query_dq_output_tuple)

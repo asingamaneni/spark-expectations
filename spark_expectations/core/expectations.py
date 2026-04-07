@@ -41,6 +41,7 @@ def get_spark_minor_version() -> float:
 
 
 MIN_SPARK_VERSION_FOR_CONNECT: float = 3.4
+MIN_SPARK_VERSION_FOR_ANSI_DEFAULT: float = 4.0
 SPARK_MINOR_VERSION: float = get_spark_minor_version()
 
 
@@ -102,6 +103,31 @@ class SparkExpectations:
     stats_table_writer: "WrappedDataFrameWriter"
     debugger: bool = False
     stats_streaming_options: Optional[Dict[str, Union[str, bool]]] = None
+
+    def _warn_if_ansi_mode_enabled(self) -> None:
+        """Log a warning when PySpark ANSI mode is active.
+
+        Starting with PySpark 4.0, ``spark.sql.ansi.enabled`` defaults to
+        ``true``.  Under ANSI mode, implicit casts that lose data (e.g.
+        ``CAST('abc' AS INT)``) raise exceptions instead of returning NULL.
+        This can cause DQ rules that rely on safe-cast behaviour to fail
+        unexpectedly.  Users are advised to use ``try_cast`` in rule
+        expressions or disable ANSI mode explicitly if needed.
+        """
+        if SPARK_MINOR_VERSION >= MIN_SPARK_VERSION_FOR_ANSI_DEFAULT:
+            try:
+                ansi_enabled = self.spark.conf.get("spark.sql.ansi.enabled", "true")
+                if ansi_enabled.lower() == "true":
+                    _log.warning(
+                        "PySpark %.1f detected with ANSI mode enabled (default in 4.0+). "
+                        "DQ rules using CAST may raise exceptions on invalid data instead "
+                        "of returning NULL. Consider using try_cast in rule expressions or "
+                        "set spark.sql.ansi.enabled=false if needed.",
+                        SPARK_MINOR_VERSION,
+                    )
+            except Exception:
+                # Config access may fail in some environments; don't block init
+                pass
 
     def _add_hash_columns(self, df: "DataFrame") -> "DataFrame":
         """
@@ -887,6 +913,7 @@ class SparkExpectations:
         self._context.set_dq_stats_table_name(self.stats_table)
         self._context.set_dq_detailed_stats_table_name(f"{self.stats_table}_detailed")
         self._validate_rules()
+        self._warn_if_ansi_mode_enabled()
         self.rules_df = self._add_hash_columns(self.rules_df)
         # self.rules_df = self.rules_df.persist(StorageLevel.MEMORY_AND_DISK)
 

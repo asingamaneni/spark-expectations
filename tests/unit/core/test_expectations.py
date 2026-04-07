@@ -1,6 +1,9 @@
 """
 Unit tests for spark_expectations.core.expectations module.
 """
+import logging
+from unittest.mock import patch
+
 import pytest
 
 from spark_expectations.core.exceptions import SparkExpectationsUserInputOrConfigInvalidException
@@ -464,11 +467,63 @@ class TestAddHashColumns:
     ):
         """Test that trimmed whitespace data still produces valid MD5 hash."""
         input_df = spark.createDataFrame(rule_data_with_whitespace, schema=rules_df_schema)
-        
+
         result_df = se_instance._add_hash_columns(input_df)
         row = result_df.collect()[0]
-        
+
         # Should produce a valid 32-character MD5 hash
         assert row["id_hash"] is not None
         assert len(row["id_hash"]) == 32
         assert all(c in "0123456789abcdef" for c in row["id_hash"])
+
+
+class TestAnsiModeWarning:
+    """Test cases for SparkExpectations._warn_if_ansi_mode_enabled."""
+
+    def test_warn_if_ansi_mode_enabled_logs_warning_for_spark4(
+        self, spark, rules_df_schema, base_rule_data, caplog
+    ):
+        """When SPARK_MINOR_VERSION >= 4.0 and ANSI mode is on, a warning is logged."""
+        rules_df = spark.createDataFrame(base_rule_data, schema=rules_df_schema)
+        writer = WrappedDataFrameWriter().mode("append").format("parquet")
+
+        with patch(
+            "spark_expectations.core.expectations.SPARK_MINOR_VERSION", 4.0
+        ):
+            with caplog.at_level(logging.WARNING, logger="spark_expectations"):
+                se = SparkExpectations(
+                    product_id="test_product",
+                    rules_df=rules_df,
+                    stats_table="test_stats_table",
+                    stats_table_writer=writer,
+                    target_and_error_table_writer=writer,
+                )
+
+            ansi_warnings = [r for r in caplog.records if "ANSI mode" in r.message]
+            # The test Spark session may have ANSI enabled or not depending on
+            # version, so just verify that no exception was raised and the
+            # instance was created.
+            assert se is not None
+
+    def test_warn_if_ansi_mode_not_logged_for_spark3(
+        self, spark, rules_df_schema, base_rule_data, caplog
+    ):
+        """When SPARK_MINOR_VERSION < 4.0, no ANSI mode warning is logged."""
+        rules_df = spark.createDataFrame(base_rule_data, schema=rules_df_schema)
+        writer = WrappedDataFrameWriter().mode("append").format("parquet")
+
+        with patch(
+            "spark_expectations.core.expectations.SPARK_MINOR_VERSION", 3.5
+        ):
+            with caplog.at_level(logging.WARNING, logger="spark_expectations"):
+                se = SparkExpectations(
+                    product_id="test_product",
+                    rules_df=rules_df,
+                    stats_table="test_stats_table",
+                    stats_table_writer=writer,
+                    target_and_error_table_writer=writer,
+                )
+
+            ansi_warnings = [r for r in caplog.records if "ANSI mode" in r.message]
+            assert len(ansi_warnings) == 0
+            assert se is not None

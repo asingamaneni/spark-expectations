@@ -30,11 +30,11 @@ Spark-Expectations sends notifications at several points during a DQ run:
 
 | Channel | Plugin class | Enable config key |
 |---------|-------------|-------------------|
-| Email | `SparkExpectationsEmailPluginImpl` | `se_enable_mail` |
-| Slack | `SparkExpectationsSlackPluginImpl` | `se_enable_slack` |
-| Microsoft Teams | `SparkExpectationsTeamsPluginImpl` | `se_enable_teams` |
-| Zoom | `SparkExpectationsZoomPluginImpl` | `se_enable_zoom` |
-| PagerDuty | `SparkExpectationsPagerDutyPluginImpl` | `se_enable_pagerduty` |
+| Email | `SparkExpectationsEmailPluginImpl` | `spark.expectations.notifications.email.enabled` |
+| Slack | `SparkExpectationsSlackPluginImpl` | `spark.expectations.notifications.slack.enabled` |
+| Microsoft Teams | `SparkExpectationsTeamsPluginImpl` | `spark.expectations.notifications.teams.enabled` |
+| Zoom | `SparkExpectationsZoomPluginImpl` | `spark.expectations.notifications.zoom.enabled` |
+| PagerDuty | `SparkExpectationsPagerDutyPluginImpl` | `spark.expectations.notifications.pagerduty.enabled` |
 
 Each channel is independently configured. You can enable any combination of channels simultaneously.
 
@@ -46,24 +46,20 @@ To add a new notification channel:
 
     ```python
     from spark_expectations.notifications.plugins.base_notification import (
-        SparkExpectationsNotification,
-        SPARK_EXPECTATIONS_NOTIFICATION_PLUGIN,
+        spark_expectations_notification_impl,
     )
-    import pluggy
-
-    hookimpl = pluggy.HookimplMarker(SPARK_EXPECTATIONS_NOTIFICATION_PLUGIN)
 
 
-    class MyCustomNotificationPlugin:
+    class SparkExpectationsMyChannelPluginImpl:
 
-        @hookimpl
+        @spark_expectations_notification_impl
         def send_notification(self, _context, _config_args):
             if _context.get_enable_my_channel is True:
                 message = _config_args.get("message", "")
                 # Send the message via your channel
                 ...
 
-        @hookimpl
+        @spark_expectations_notification_impl
         def set_notification_param(self, _context):
             # Read configuration from _context and validate
             ...
@@ -72,10 +68,15 @@ To add a new notification channel:
 2. Register the plugin in `spark_expectations/notifications/__init__.py`:
 
     ```python
-    from spark_expectations.notifications.plugins.my_channel import MyCustomPlugin
+    from spark_expectations.notifications.plugins.my_channel import (
+        SparkExpectationsMyChannelPluginImpl,
+    )
 
     # Inside get_notifications_hook():
-    pm.register(MyCustomPlugin(), "spark_expectations_my_channel_notification")
+    pm.register(
+        SparkExpectationsMyChannelPluginImpl(),
+        "spark_expectations_my_channel_notification",
+    )
     ```
 
 3. Add the corresponding configuration keys to `SparkExpectationsContext` and `SparkExpectationsReader`.

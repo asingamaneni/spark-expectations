@@ -666,7 +666,8 @@ def test_notify_rules_exceeds_threshold_multiple_rules_single_notification(
     # Should be called exactly once with a consolidated message containing both rules
     _mock_notification_hook.assert_called_once()
     call_args = _mock_notification_hook.call_args
-    notification_body = call_args[0][1]  # positional arg: (self, message)
+    # With autospec=True on class method, call_args[0] = (self, message)
+    notification_body = call_args[0][1]
     assert "rule1" in notification_body
     assert "rule2" in notification_body
 

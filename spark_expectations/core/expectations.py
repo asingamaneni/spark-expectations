@@ -125,9 +125,9 @@ class SparkExpectations:
                         "set spark.sql.ansi.enabled=false if needed.",
                         SPARK_MINOR_VERSION,
                     )
-            except Exception:
+            except Exception as e:
                 # Config access may fail in some environments; don't block init
-                pass
+                _log.debug("Could not check ANSI mode setting: %s", e)
 
     def _add_hash_columns(self, df: "DataFrame") -> "DataFrame":
         """

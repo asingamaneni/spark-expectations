@@ -124,7 +124,7 @@ Make sure your SMTP server allows connections from your environment (some provid
         # Email Templates
         user_config.se_notifications_enable_templated_basic_email_body: True,
 
-        # If jinjia template is not provided it will use default one
+        # If jinja template is not provided it will use default one
         user_config.se_notifications_default_basic_email_template: custom_html_email_template
     }
     ```

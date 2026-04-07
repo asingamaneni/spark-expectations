@@ -36,7 +36,7 @@ class SparkExpectationsReader:
         try:
             # Use the notification dict directly - it's already merged with defaults
             _notification_dict = notification if notification else {}
-           
+
             if _notification_dict.get(user_config.se_enable_obs_dq_report_result) is True:
                 self._context.set_enable_obs_dq_report_result(True)
                 if _notification_dict.get(user_config.se_dq_obs_alert_flag) is True:
@@ -112,10 +112,9 @@ class SparkExpectationsReader:
                     _smtp_user_name = _notification_dict.get(user_config.se_notifications_smtp_user_name)
                     if _smtp_user_name is not None and str(_smtp_user_name).strip() != "":
                         self._context.set_mail_smtp_user_name(str(_smtp_user_name).strip())
-                if (
-                    _notification_dict.get(user_config.se_notifications_enable_custom_email_body)
-                    and _notification_dict.get(user_config.se_notifications_email_custom_body)
-                ):
+                if _notification_dict.get(
+                    user_config.se_notifications_enable_custom_email_body
+                ) and _notification_dict.get(user_config.se_notifications_email_custom_body):
                     self._context.set_enable_custom_email_body(True)
                     self._context.set_email_custom_body(
                         str(_notification_dict[user_config.se_notifications_email_custom_body])
@@ -158,12 +157,14 @@ class SparkExpectationsReader:
                     self._context.set_zoom_webhook_url(
                         str(_notification_dict[user_config.se_notifications_zoom_webhook_url])
                     )
-                    self._context.set_zoom_token(str(_notification_dict.get(user_config.se_notifications_zoom_token, "")))
+                    self._context.set_zoom_token(
+                        str(_notification_dict.get(user_config.se_notifications_zoom_token, ""))
+                    )
                 else:
                     raise SparkExpectationsMiscException(
                         "All params/variables required for zoom notification is not configured or supplied"
                     )
-            
+
             if _notification_dict.get(user_config.se_notifications_enable_pagerduty) is True:
                 if _notification_dict.get(user_config.se_notifications_pagerduty_integration_key):
                     self._context.set_enable_pagerduty(True)
@@ -290,7 +291,7 @@ class SparkExpectationsReader:
             self._context.reset_num_dq_rules()
             self._context.reset_num_row_dq_rules()
             self._context.reset_num_query_dq_rules()
-            
+
             if not self._context.get_error_table_name_user_specified:
                 self._context.set_error_table_name(f"{target_table}_error", user_specified=False)
 

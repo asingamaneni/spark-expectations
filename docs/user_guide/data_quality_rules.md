@@ -14,7 +14,7 @@ When evaluating characteristic of data and it's quality we usually think of data
 
 ## Rules Table 
 For users to be able to run spark-expectations or define rules, the `Rules table` needs to exist and its
-format needs to match the expected schema. 
+format needs to match the schema below.
 
 The below SQL statements used three namespaces which works with Databricks Unity Catalog, but if you are using hive
 please update the namespaces accordingly and also provide necessary table metadata.
@@ -54,7 +54,7 @@ create table if not exists `catalog`.`schema`.`{product}_rules` (
     Fail: job fails if the rule fails. Applies for all 3 rule types.
 8. `tag` provide some tag name to dq rule example:  completeness, validity, uniqueness etc. 
 9. `description`  Long description for the rule
-10. `enable_for_source_dq_validation` when true, agg_dq and query_dq will run on the dataset before row_dq rules get excuted (and filter down the dataset).
+10. `enable_for_source_dq_validation` when true, agg_dq and query_dq will run on the dataset before row_dq rules get executed (and filter down the dataset).
 11. `enable_for_target_dq_validation` when true, agg_dq and query_dq will run on the dataset after row_dq rules ran.
 12. `is_active` true or false to indicate if the rule is active or not. 
 13. `enable_error_drop_alert` true or false. This determines if an alert notification should be sent out if row(s) is(are) dropped from the data set

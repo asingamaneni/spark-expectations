@@ -8,7 +8,7 @@ By default, Slack notifications are disabled. To enable them, you need to config
 
 Before configuring Slack notifications, you need:
 
-###  Slack Webhook URL
+### Slack Webhook URL
 
 1. Go to [https://api.slack.com/apps](https://api.slack.com/apps) and create a new app
 2. Enable **"Incoming Webhooks"** and add one to your workspace

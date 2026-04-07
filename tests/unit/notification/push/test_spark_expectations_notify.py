@@ -426,7 +426,7 @@ def test_notify_on_failure_with_kafka_error(_mock_notification_hook, _fixture_mo
     # Set up context with Kafka failure
     _fixture_mock_context.get_kafka_write_status = "Failed"
     _fixture_mock_context.get_kafka_write_error_message = "Connection timeout to Kafka broker"
-    
+
     expected_message = (
         "Spark expectations job has been failed  \n\n"
         "product_id: product_id1\n"
@@ -491,11 +491,7 @@ def test_construct_message_for_each_rules(_fixture_mock_context):
 
     # Call the method under test
     result = notify_handler.construct_message_for_each_rules(
-        rule_name,
-        failed_row_count,
-        error_drop_percentage,
-        action,
-        description
+        rule_name, failed_row_count, error_drop_percentage, action, description
     )
 
     # Assert the constructed notification message
@@ -536,7 +532,7 @@ def test_notify_on_exceeds_of_error_threshold_each_rules(_notification_hook, _fi
         _context=_fixture_mock_context,
         _config_args={
             "message": "Spark expectations - The number of notifications for rules being followed has surpassed the specified threshold \n\n\nTest message",
-            "content_type": "plain"
+            "content_type": "plain",
         },
     )
 
@@ -618,6 +614,58 @@ def test_notify_rules_exceeds_threshold_return_none(
 
     # Call the function to test
     assert notify_handler.notify_rules_exceeds_threshold({}) == None
+
+
+@patch(
+    "spark_expectations.notifications.push.spark_expectations_notify.SparkExpectationsNotify.notify_on_exceeds_of_error_threshold_each_rules",
+    autospec=True,
+    spec_set=True,
+)
+def test_notify_rules_exceeds_threshold_multiple_rules_single_notification(
+    _mock_notification_hook,
+    _fixture_mock_context,
+):
+    """Test that multiple rules exceeding threshold produce exactly one consolidated notification.
+
+    Previously, the notification dispatch was inside the for-loop, causing
+    a separate (and cumulative) notification on every iteration. The fix moves
+    the dispatch after the loop so a single consolidated message is sent.
+    """
+    _fixture_mock_context.get_input_count = 10
+
+    _fixture_mock_context.get_summarized_row_dq_res = [
+        {"rule": "rule1", "failed_row_count": 5},
+        {"rule": "rule2", "failed_row_count": 8},
+    ]
+
+    notify_handler = SparkExpectationsNotify(_fixture_mock_context)
+
+    rules = {
+        "row_dq_rules": [
+            {
+                "rule": "rule1",
+                "enable_error_drop_alert": True,
+                "action_if_failed": "fail",
+                "error_drop_threshold": 10,  # 50% > 10% — exceeds
+            },
+            {
+                "rule": "rule2",
+                "enable_error_drop_alert": True,
+                "action_if_failed": "fail",
+                "error_drop_threshold": 10,  # 80% > 10% — exceeds
+            },
+        ]
+    }
+
+    notify_handler.notify_rules_exceeds_threshold(rules)
+
+    # Should be called exactly once with a consolidated message containing both rules
+    _mock_notification_hook.assert_called_once()
+    call_args = _mock_notification_hook.call_args
+    # With autospec=True on class method, call_args[0] = (self, message)
+    notification_body = call_args[0][1]
+    assert "rule1" in notification_body
+    assert "rule2" in notification_body
 
 
 def test_notify_rules_exceeds_threshold_exception(_fixture_mock_context):
@@ -736,8 +784,9 @@ def test_notify_on_failure_with_custom_email_body(
         _config_args={"message": "Custom notification message", "content_type": "plain"},
     )
 
+
 @patch("spark_expectations.notifications.push.spark_expectations_notify._log")
-def test_get_custom_notification(mock_log,_fixture_mock_context):
+def test_get_custom_notification(mock_log, _fixture_mock_context):
     _fixture_mock_context.get_email_custom_body = """'product_id': {}, 'table_name': {}, 'unmatched_key': {}"""
     _fixture_mock_context.get_stats_dict = [{"product_id": "product_id1", "table_name": "test_table", "input_count": 5}]
 
@@ -748,6 +797,7 @@ def test_get_custom_notification(mock_log,_fixture_mock_context):
     assert mock_log.warning.call_count >= 1
     assert "unmatched_key" in mock_log.warning.call_args[0][0]
 
+
 @patch(
     "spark_expectations.notifications.push.spark_expectations_notify._notification_hook",
     autospec=True,
@@ -755,21 +805,16 @@ def test_get_custom_notification(mock_log,_fixture_mock_context):
 )
 @patch.object(SparkExpectationsNotify, "construct_message_for_each_rules")
 def test_notify_on_failed_dq_medium_priority(
-    mock_construct_message,
-    mock_notification_hook,
-    _fixture_mock_context_with_priority_data
+    mock_construct_message, mock_notification_hook, _fixture_mock_context_with_priority_data
 ):
     # Setup
-    mock_construct_message.side_effect = [
-        "High priority rule message",
-        "Medium priority rule message"
-    ]
-    
+    mock_construct_message.side_effect = ["High priority rule message", "Medium priority rule message"]
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context_with_priority_data)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify construct_message_for_each_rules was called for medium and high priority rules
     assert mock_construct_message.call_count == 2
     # Verify notification hook was called twice
@@ -783,19 +828,17 @@ def test_notify_on_failed_dq_medium_priority(
 )
 @patch.object(SparkExpectationsNotify, "construct_message_for_each_rules")
 def test_notify_on_failed_dq_high_priority(
-    mock_construct_message,
-    mock_notification_hook,
-    _fixture_mock_context_with_priority_data
+    mock_construct_message, mock_notification_hook, _fixture_mock_context_with_priority_data
 ):
     # Setup - change priority to high
     _fixture_mock_context_with_priority_data.get_min_priority_slack = "high"
     mock_construct_message.return_value = "High priority rule message"
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context_with_priority_data)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify construct_message_for_each_rules was called only for high priority rule
     assert mock_construct_message.call_count == 1
     mock_construct_message.assert_called_with(
@@ -803,9 +846,9 @@ def test_notify_on_failed_dq_high_priority(
         failed_row_count=50,
         error_drop_percentage=5.0,
         action="fail",
-        description="rule_high_priority with priority high has  failed the row dq check"
+        description="rule_high_priority with priority high has  failed the row dq check",
     )
-    
+
     # Verify notification hook was called once
     assert mock_notification_hook.send_notification.call_count == 1
 
@@ -817,26 +860,24 @@ def test_notify_on_failed_dq_high_priority(
 )
 @patch.object(SparkExpectationsNotify, "construct_message_for_each_rules")
 def test_notify_on_failed_dq_low_priority(
-    mock_construct_message,
-    mock_notification_hook,
-    _fixture_mock_context_with_priority_data
+    mock_construct_message, mock_notification_hook, _fixture_mock_context_with_priority_data
 ):
     # Setup - change priority to low
     _fixture_mock_context_with_priority_data.get_min_priority_slack = "low"
     mock_construct_message.side_effect = [
         "High priority rule message",
         "Medium priority rule message",
-        "Low priority rule message"
+        "Low priority rule message",
     ]
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context_with_priority_data)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify construct_message_for_each_rules was called for all priority rules (excluding zero failures)
     assert mock_construct_message.call_count == 3
-    
+
     # Verify notification hook was called three times
     assert mock_notification_hook.send_notification.call_count == 3
 
@@ -846,32 +887,19 @@ def test_notify_on_failed_dq_low_priority(
     autospec=True,
     spec_set=True,
 )
-def test_notify_on_failed_dq_no_failed_rules(
-    mock_notification_hook,
-    _fixture_mock_context
-):
+def test_notify_on_failed_dq_no_failed_rules(mock_notification_hook, _fixture_mock_context):
     # Setup context with no failed rules
     _fixture_mock_context.get_min_priority_slack = "low"
     _fixture_mock_context.get_summarized_row_dq_res = [
-        {
-            "rule": "rule_no_failures_1",
-            "priority": "high",
-            "failed_row_count": 0,
-            "action_if_failed": "fail"
-        },
-        {
-            "rule": "rule_no_failures_2",
-            "priority": "medium",
-            "failed_row_count": 0,
-            "action_if_failed": "ignore"
-        }
+        {"rule": "rule_no_failures_1", "priority": "high", "failed_row_count": 0, "action_if_failed": "fail"},
+        {"rule": "rule_no_failures_2", "priority": "medium", "failed_row_count": 0, "action_if_failed": "ignore"},
     ]
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify no notifications were sent
     assert mock_notification_hook.send_notification.call_count == 0
 
@@ -881,19 +909,16 @@ def test_notify_on_failed_dq_no_failed_rules(
     autospec=True,
     spec_set=True,
 )
-def test_notify_on_failed_dq_empty_rules(
-    mock_notification_hook,
-    _fixture_mock_context
-):
+def test_notify_on_failed_dq_empty_rules(mock_notification_hook, _fixture_mock_context):
     # Setup context with empty rules list
     _fixture_mock_context.get_min_priority_slack = "low"
     _fixture_mock_context.get_summarized_row_dq_res = []
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify no notifications were sent
     assert mock_notification_hook.send_notification.call_count == 0
 
@@ -904,22 +929,22 @@ def test_get_rules_for_notification_filters_by_priority(_fixture_mock_context):
         {"rule": "rule1", "priority": "high", "failed_row_count": 10},
         {"rule": "rule2", "priority": "medium", "failed_row_count": 5},
         {"rule": "rule3", "priority": "low", "failed_row_count": 3},
-        {"rule": "rule4", "priority": "high", "failed_row_count": 0}  # Should be filtered out
+        {"rule": "rule4", "priority": "high", "failed_row_count": 0},  # Should be filtered out
     ]
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Test with high priority filter
     result = notify_handler._get_rules_for_notification(["high"])
     assert len(result) == 1
     assert result[0]["rule"] == "rule1"
-    
+
     # Test with medium and high priority filter
     result = notify_handler._get_rules_for_notification(["medium", "high"])
     assert len(result) == 2
     assert any(rule["rule"] == "rule1" for rule in result)
     assert any(rule["rule"] == "rule2" for rule in result)
-    
+
     # Test with all priorities
     result = notify_handler._get_rules_for_notification(["low", "medium", "high"])
     assert len(result) == 3
@@ -931,11 +956,11 @@ def test_get_rules_for_notification_filters_by_failed_count(_fixture_mock_contex
         {"rule": "rule1", "priority": "high", "failed_row_count": 10},
         {"rule": "rule2", "priority": "high", "failed_row_count": 0},
         {"rule": "rule3", "priority": "high", "failed_row_count": "0"},  # String zero
-        {"rule": "rule4", "priority": "high", "failed_row_count": 5}
+        {"rule": "rule4", "priority": "high", "failed_row_count": 5},
     ]
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Test filtering - should only return rules with failed_row_count > 0
     result = notify_handler._get_rules_for_notification(["high"])
     assert len(result) == 2
@@ -948,25 +973,22 @@ def test_get_rules_for_notification_filters_by_failed_count(_fixture_mock_contex
     autospec=True,
     spec_set=True,
 )
-def test_notify_on_failed_dq_message_content(
-    mock_notification_hook,
-    _fixture_mock_context_with_priority_data
-):
+def test_notify_on_failed_dq_message_content(mock_notification_hook, _fixture_mock_context_with_priority_data):
     # Setup
     notify_handler = SparkExpectationsNotify(_fixture_mock_context_with_priority_data)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify the message content structure by checking calls to send_notification
     calls = mock_notification_hook.send_notification.call_args_list
-    
+
     for call in calls:
         args, kwargs = call
         # Verify the call structure
         assert "_context" in kwargs or len(args) >= 1
         assert "_config_args" in kwargs or len(args) >= 2
-        
+
         # Extract config_args
         config_args = kwargs.get("_config_args", args[1] if len(args) > 1 else {})
         assert "message" in config_args
@@ -977,10 +999,10 @@ def test_notify_on_failed_dq_message_content(
 @pytest.mark.parametrize(
     "min_priority, expected_rule_count",
     [
-        ("high", 1),    # Only high priority rules
+        ("high", 1),  # Only high priority rules
         ("medium", 2),  # Medium and high priority rules
-        ("low", 3)      # All priority rules (excluding zero failures)
-    ]
+        ("low", 3),  # All priority rules (excluding zero failures)
+    ],
 )
 @patch(
     "spark_expectations.notifications.push.spark_expectations_notify._notification_hook",
@@ -988,57 +1010,57 @@ def test_notify_on_failed_dq_message_content(
     spec_set=True,
 )
 def test_notify_on_failed_dq_priority_filtering_parametrized(
-    mock_notification_hook,
-    _fixture_mock_context_with_priority_data,
-    min_priority,
-    expected_rule_count
+    mock_notification_hook, _fixture_mock_context_with_priority_data, min_priority, expected_rule_count
 ):
     # Setup
     _fixture_mock_context_with_priority_data.get_min_priority_slack = min_priority
     notify_handler = SparkExpectationsNotify(_fixture_mock_context_with_priority_data)
-    
+
     # Call the function to be tested
     notify_handler.notify_on_failed_dq()
-    
+
     # Verify the expected number of notifications were sent
     assert mock_notification_hook.send_notification.call_count == expected_rule_count
 
 
 # New tests to improve coverage
 
+
 def test_serialize_date_with_datetime():
     """Test serialize_date method with datetime object"""
     from datetime import datetime
+
     test_datetime = datetime(2023, 11, 12, 14, 30, 45)
-    
+
     result = SparkExpectationsNotify.serialize_date(test_datetime)
-    
+
     assert result == "2023-11-12T14:30:45"
 
 
 def test_serialize_date_with_date():
     """Test serialize_date method with date object"""
     from datetime import date
+
     test_date = date(2023, 11, 12)
-    
+
     result = SparkExpectationsNotify.serialize_date(test_date)
-    
+
     assert result == "2023-11-12"
 
 
 def test_serialize_date_with_none():
     """Test serialize_date method with None value"""
     result = SparkExpectationsNotify.serialize_date(None)
-    
+
     assert result is None
 
 
 def test_serialize_date_with_string():
     """Test serialize_date method with string value"""
     test_string = "2023-11-12"
-    
+
     result = SparkExpectationsNotify.serialize_date(test_string)
-    
+
     assert result is None
 
 
@@ -1048,16 +1070,16 @@ def test_notify_on_start_completion_failure_on_start_enabled(_mock_notification_
     _fixture_mock_context.get_notification_on_start = True
     _fixture_mock_context.get_notification_on_completion = False
     _fixture_mock_context.get_notification_on_fail = False
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Create a mock function to decorate
     @notify_handler.send_notification_decorator
     def test_function():
         return "success"
-    
+
     result = test_function()
-    
+
     assert result == "success"
     # Verify on_start was called via the notification hook
     _mock_notification_hook.send_notification.assert_called()
@@ -1069,16 +1091,16 @@ def test_notify_on_start_completion_failure_on_completion_enabled(_mock_notifica
     _fixture_mock_context.get_notification_on_start = False
     _fixture_mock_context.get_notification_on_completion = True
     _fixture_mock_context.get_notification_on_fail = False
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Create a mock function to decorate
     @notify_handler.send_notification_decorator
     def test_function():
         return "success"
-    
+
     result = test_function()
-    
+
     assert result == "success"
     # Verify on_completion was called via the notification hook
     _mock_notification_hook.send_notification.assert_called()
@@ -1090,17 +1112,17 @@ def test_notify_on_start_completion_failure_on_fail_enabled(_mock_notification_h
     _fixture_mock_context.get_notification_on_start = False
     _fixture_mock_context.get_notification_on_completion = False
     _fixture_mock_context.get_notification_on_fail = True
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Create a mock function that raises an exception
     @notify_handler.send_notification_decorator
     def test_function():
         raise ValueError("Test error")
-    
+
     with pytest.raises(SparkExpectationsMiscException):
         test_function()
-    
+
     # Verify on_failure was called via the notification hook
     _mock_notification_hook.send_notification.assert_called()
 
@@ -1111,38 +1133,40 @@ def test_notify_on_start_completion_failure_all_disabled(_mock_notification_hook
     _fixture_mock_context.get_notification_on_start = False
     _fixture_mock_context.get_notification_on_completion = False
     _fixture_mock_context.get_notification_on_fail = False
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Create a mock function to decorate
     @notify_handler.send_notification_decorator
     def test_function():
         return "success"
-    
+
     result = test_function()
-    
+
     assert result == "success"
     # Verify no notifications were sent
     _mock_notification_hook.send_notification.assert_not_called()
 
 
 @patch("spark_expectations.notifications.push.spark_expectations_notify._notification_hook")
-def test_notify_on_start_completion_failure_exception_with_fail_disabled(_mock_notification_hook, _fixture_mock_context):
+def test_notify_on_start_completion_failure_exception_with_fail_disabled(
+    _mock_notification_hook, _fixture_mock_context
+):
     """Test decorator when exception occurs but notification_on_fail is disabled"""
     _fixture_mock_context.get_notification_on_start = False
     _fixture_mock_context.get_notification_on_completion = False
     _fixture_mock_context.get_notification_on_fail = False
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # Create a mock function that raises an exception
     @notify_handler.send_notification_decorator
     def test_function():
         raise ValueError("Test error")
-    
+
     with pytest.raises(SparkExpectationsMiscException):
         test_function()
-    
+
     # Verify no notifications were sent
     _mock_notification_hook.send_notification.assert_not_called()
 
@@ -1151,13 +1175,13 @@ def test_get_custom_notification_with_missing_key(_fixture_mock_context):
     """Test get_custom_notification when some keys are missing from stats dict"""
     _fixture_mock_context.get_stats_dict = [{"key1": "value1"}]  # Missing key2
     _fixture_mock_context.get_email_custom_body = "Template with 'key1': {} and 'key2': {}"
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     # This should work but log a warning for missing key2
     with patch("spark_expectations.notifications.push.spark_expectations_notify._log") as mock_log:
         result = notify_handler.get_custom_notification()
-        
+
         assert "CUSTOM EMAIL" in result
         assert '"key1": "value1"' in result
         mock_log.warning.assert_called_once()
@@ -1166,17 +1190,17 @@ def test_get_custom_notification_with_missing_key(_fixture_mock_context):
 def test_get_custom_notification_with_serializable_date(_fixture_mock_context):
     """Test get_custom_notification with date values that need serialization"""
     from datetime import datetime, date
-    
+
     test_datetime = datetime(2023, 11, 12, 14, 30, 45)
     test_date = date(2023, 11, 12)
-    
+
     _fixture_mock_context.get_stats_dict = [{"datetime_key": test_datetime, "date_key": test_date}]
     _fixture_mock_context.get_email_custom_body = "Template with 'datetime_key': {} and 'date_key': {}"
-    
+
     notify_handler = SparkExpectationsNotify(_fixture_mock_context)
-    
+
     result = notify_handler.get_custom_notification()
-    
+
     assert "CUSTOM EMAIL" in result
     assert "2023-11-12T14:30:45" in result
     assert "2023-11-12" in result

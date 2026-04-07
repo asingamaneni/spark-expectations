@@ -151,7 +151,7 @@ stats_streaming_config_dict = {
     user_config.se_enable_streaming: False
 }
 
-user_config = {}
+user_conf = {}
 
 ```
 
@@ -219,7 +219,7 @@ Returns:
     target_table=f"{catalog}.{schema}.{target_table_name}",
     write_to_table=True,
     write_to_temp_table=True,
-    user_conf=user_config,
+    user_conf=user_conf,
 )
 def get_dataset():
     _df_source: DataFrame = input_df

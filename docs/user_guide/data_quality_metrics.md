@@ -64,7 +64,7 @@ create table if not exists `catalog`.`schema`.`dq_stats` (
 
 ### DQ Detailed Stats Table
 
-Library is responsible for auto generating two stats tables that provide per expectation/rule executaion status view. 
+Library is responsible for auto generating two stats tables that provide per expectation/rule execution status view. 
 
 Tables in question are
 - `<stats_table_name>_detailed`
@@ -156,7 +156,7 @@ dq_job_metadata_info string,  -- (28)!
 !!! warning
     DQ Query Output Table is optional. It is auto created and named as stats table with suffix `_querydq_output`.
 
-    Name can be overriden by passing `querydq_output_custom_table_name`
+    Name can be overridden by passing `querydq_output_custom_table_name`
 
     Default Behaviour: Detailed Stats table is disabled.
 
@@ -183,13 +183,13 @@ create table if not exists `<catalog>`.`<schema>`.`<stats_table_name>_querydq_ou
 );
 ```
 
-1. `run_id` Run Id for a specific run 
-2. `product_id` Unique product identifier 
-3. `table_name` --
+1. `run_id` Run Id for a specific run
+2. `product_id` Unique product identifier
+3. `table_name` The target table for which the query DQ rule is defined
 4. `rule`  Rule name
-5. `column_name` column name
-6. `alias` --
-7. `dq_type` --
-8. `source_output` --
-9. `target_output` --
-10. `dq_time` Dq executed timestamp
+5. `column_name` Column name referenced by the rule
+6. `alias` Alias for the query DQ output column
+7. `dq_type` Type of data quality check (source or target)
+8. `source_output` Query result from the source data quality check
+9. `target_output` Query result from the target data quality check
+10. `dq_time` DQ executed timestamp

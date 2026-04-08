@@ -244,7 +244,7 @@ class TestSaveDataFrameAsTableStreaming:
 
         result = None
         try:
-            with caplog.at_level(logging.WARNING):
+            with caplog.at_level(logging.WARNING, logger="spark_expectations"):
                 result = _fixture_writer.save_df_as_table(
                     _fixture_streaming_df,
                     table_name,

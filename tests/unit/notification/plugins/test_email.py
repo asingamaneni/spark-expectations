@@ -77,6 +77,37 @@ def test_send_notification_exception(_mock_context):
 
 
 @patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
+def test_send_notification_smtp_quit_called_on_sendmail_failure(_mock_context):
+    """Verify that server.quit() is called even when sendmail raises an exception,
+    preventing SMTP connection leaks."""
+    # arrange
+    email_handler = SparkExpectationsEmailPluginImpl()
+    _mock_context.get_enable_mail = True
+    _mock_context.get_mail_from = "sender@example.com"
+    _mock_context.get_to_mail = "receiver@example.com"
+    _mock_context.get_mail_subject = "Test Email"
+    _mock_context.get_mail_smtp_server = "mailhost.example.com"
+    _mock_context.get_mail_smtp_port = 587
+    _mock_context.get_enable_smtp_server_auth = False
+
+    mock_config_args = {"message": "Test Email Body"}
+
+    with (
+        patch("spark_expectations.notifications.plugins.email.smtplib.SMTP") as mock_smtp,
+        patch("spark_expectations.notifications.plugins.email.MIMEMultipart"),
+        pytest.raises(SparkExpectationsEmailException),
+    ):
+        mock_smtp_instance = mock_smtp.return_value
+        mock_smtp_instance.sendmail.side_effect = Exception("SMTP sendmail failed")
+
+        # act
+        email_handler.send_notification(_context=_mock_context, _config_args=mock_config_args)
+
+    # assert — quit must be called despite the sendmail failure
+    mock_smtp_instance.quit.assert_called_once()
+
+
+@patch("spark_expectations.notifications.plugins.email.SparkExpectationsContext", autospec=True, spec_set=True)
 def test_send_notification_with_smtp_auth(_mock_context):
     # arrange
     email_handler = SparkExpectationsEmailPluginImpl()

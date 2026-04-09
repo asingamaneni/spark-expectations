@@ -175,8 +175,9 @@ class SparkExpectationsReport:
                 )
                 .withColumn(
                     "total_records_only_nbr",
-                    when(col("_total_records_str") == "", lit(None).cast("bigint"))
-                    .otherwise(col("_total_records_str").cast("bigint")),
+                    when(col("_total_records_str") == "", lit(None).cast("bigint")).otherwise(
+                        col("_total_records_str").cast("bigint")
+                    ),
                 )
                 .withColumn(
                     "_valid_records_str",
@@ -184,10 +185,16 @@ class SparkExpectationsReport:
                 )
                 .withColumn(
                     "valid_records_only_nbr",
-                    when(col("_valid_records_str") == "", lit(None).cast("bigint"))
-                    .otherwise(col("_valid_records_str").cast("bigint")),
+                    when(col("_valid_records_str") == "", lit(None).cast("bigint")).otherwise(
+                        col("_valid_records_str").cast("bigint")
+                    ),
                 )
                 .drop("_total_records_str", "_valid_records_str")
+                # success_percentage calculation:
+                # - Both null: no data to compare, treat as pass (100%)
+                # - Total null but valid present: incomplete extraction, treat as failure (0%)
+                # - Total present but valid null: missing validation, treat as failure (0%)
+                # - Both present: compute ratio
                 .withColumn(
                     "success_percentage",
                     when(
@@ -195,8 +202,8 @@ class SparkExpectationsReport:
                         lit(100),
                     )
                     .when(
-                        col("total_records_only_nbr").isNull() & col("valid_records_only_nbr").isNull(),
-                        lit(100),
+                        col("total_records_only_nbr").isNull() & col("valid_records_only_nbr").isNotNull(),
+                        lit(0),
                     )
                     .when(
                         col("total_records_only_nbr").isNotNull() & col("valid_records_only_nbr").isNull(),
@@ -219,6 +226,10 @@ class SparkExpectationsReport:
                         )
                     ),
                 )
+                # failed_rec_perc_variance: mirrors success_percentage logic
+                # - Both null: no data, no variance (0%)
+                # - One null, other present: incomplete extraction, full variance (100%)
+                # - Both present: compute actual variance
                 .withColumn(
                     "failed_rec_perc_variance",
                     when(
@@ -226,8 +237,8 @@ class SparkExpectationsReport:
                         lit(0),
                     )
                     .when(
-                        col("total_records_only_nbr").isNull() & col("valid_records_only_nbr").isNull(),
-                        lit(0),
+                        col("total_records_only_nbr").isNull() & col("valid_records_only_nbr").isNotNull(),
+                        lit(100),
                     )
                     .when(
                         col("total_records_only_nbr").isNotNull() & col("valid_records_only_nbr").isNull(),

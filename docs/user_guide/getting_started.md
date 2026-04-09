@@ -5,9 +5,11 @@ This guide will help you set up your environment, install the library, and under
 ## Prerequisites
 
 ### Python
-- **Supported versions:** 3.9, 3.10, 3.11, 3.12 (recommended: latest 3.12.x)
+- **Tested versions:** 3.10, 3.11, 3.12 (recommended: latest 3.12.x)
+- Python 3.9 and 3.13 may work but are not actively tested in CI.
+
 ### Java
-- **Supported versions:** 8, 11, 17 
+- **Supported versions:** 11, 17 (recommended: 17)
 
 
 ## Installation
@@ -18,7 +20,7 @@ You can install Spark-Expectations directly from [PyPI](https://pypi.org/project
 pip install -U spark-expectations
 ```
 
-Or add it to your `requirements.txt ` or dependency manager (e.g., poetry, hatch, uv).
+Or add it to your `requirements.txt` or dependency manager (e.g., poetry, hatch, uv).
 
 
 

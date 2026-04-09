@@ -1,9 +1,14 @@
+# Data Quality Metrics
 
+spark-expectations automatically captures metrics and statistics for every data quality run.
+Three tables record progressively finer-grained results: a summary stats table, a per-rule
+detailed stats table, and a query-DQ output table.
 
-### DQ Stats Table
+## DQ Stats Table
 
-In order to collect the stats/metrics for each data quality job run, the spark-expectations job will
-automatically create the stats table if it does not exist. 
+The stats table stores one row per DQ job run with aggregate counts, pass/fail percentages,
+and rule execution metadata. spark-expectations creates this table automatically if it does
+not exist.
 
 !!! warning
     The below SQL statement can be used to create the table
@@ -62,16 +67,16 @@ create table if not exists `catalog`.`schema`.`dq_stats` (
 22. `databricks_workspace_id` Databricks workspace ID (automatically detected from environment or context, defaults to "local")
 23. `databricks_hostname` Databricks workspace hostname/URL (automatically detected from environment, context, or Spark config, defaults to "local")
 
-### DQ Detailed Stats Table
+## DQ Detailed Stats Table
 
-Library is responsible for auto generating two stats tables that provide per expectation/rule executaion status view. 
+In addition to the summary stats table, spark-expectations can write per-rule results to two
+supplementary tables that are auto-created when enabled:
 
-Tables in question are
-- `<stats_table_name>_detailed`
-- `<stats_table_name>_querydq_output`
+- `<stats_table_name>_detailed` — one row per rule per run with source and target outcomes
+- `<stats_table_name>_querydq_output` — raw query-DQ output values for each rule
 
-This table provides detailed stats of all the expectations along with the status provided in the stats table in a relational format.
-This table need not be created. It gets auto created with "_detailed " to the dq stats table name. 
+The detailed stats table provides a relational view of every rule execution alongside the
+source and target DQ status, actual vs expected outcomes, and timing information.
 
 
 !!! warning
@@ -84,8 +89,7 @@ This table need not be created. It gets auto created with "_detailed " to the dq
     
 
 
-#### Schema
-
+### Schema
 
 ```sql
 create table if not exists `catalog`.`schema`.`<stats_table_name>_detailed` (
@@ -151,12 +155,12 @@ dq_job_metadata_info string,  -- (28)!
 
 
 
-### DQ Query Output Table 
+## DQ Query Output Table
 
 !!! warning
     DQ Query Output Table is optional. It is auto created and named as stats table with suffix `_querydq_output`.
 
-    Name can be overriden by passing `querydq_output_custom_table_name`
+    Name can be overridden by passing `querydq_output_custom_table_name`
 
     Default Behaviour: Detailed Stats table is disabled.
 
@@ -166,7 +170,7 @@ dq_job_metadata_info string,  -- (28)!
     
     ```
 
-#### Schema 
+### Schema
 
 ```sql
 create table if not exists `<catalog>`.`<schema>`.`<stats_table_name>_querydq_output` (
@@ -183,13 +187,13 @@ create table if not exists `<catalog>`.`<schema>`.`<stats_table_name>_querydq_ou
 );
 ```
 
-1. `run_id` Run Id for a specific run 
-2. `product_id` Unique product identifier 
-3. `table_name` --
+1. `run_id` Run Id for a specific run
+2. `product_id` Unique product identifier
+3. `table_name` The target table for which the query DQ rule is defined
 4. `rule`  Rule name
-5. `column_name` column name
-6. `alias` --
-7. `dq_type` --
-8. `source_output` --
-9. `target_output` --
-10. `dq_time` Dq executed timestamp
+5. `column_name` Column name referenced by the rule
+6. `alias` Alias for the query DQ output column
+7. `dq_type` Type of data quality check (source or target)
+8. `source_output` Query result from the source data quality check
+9. `target_output` Query result from the target data quality check
+10. `dq_time` DQ executed timestamp

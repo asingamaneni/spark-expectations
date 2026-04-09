@@ -216,7 +216,10 @@ class TestSaveDataFrameAsTableStreaming:
         assert spark.catalog.tableExists(table_name)
 
     def test_streaming_df_with_continuous_trigger(
-        self, _fixture_writer, _fixture_streaming_df, _fixture_cleanup_streaming_tables, caplog
+        self,
+        _fixture_writer,
+        _fixture_streaming_df,
+        _fixture_cleanup_streaming_tables,
     ):
         """Test that continuous trigger is accepted by the writer and logs a warning.
 
@@ -227,8 +230,6 @@ class TestSaveDataFrameAsTableStreaming:
         2. The query object is returned (sync path does not raise).
         3. The async failure is detected via ``query.exception()``.
         """
-        import logging
-
         table_name = "dq_spark.test_streaming_continuous"
         config = {
             "outputMode": "append",
@@ -244,17 +245,30 @@ class TestSaveDataFrameAsTableStreaming:
 
         result = None
         try:
-            with caplog.at_level(logging.WARNING, logger="spark_expectations"):
+            with patch("spark_expectations.sinks.utils.writer._log") as mock_log:
+                # Delegate all non-warning calls to the real logger so the
+                # rest of the method (info, debug, etc.) works normally.
+                from spark_expectations import _log as real_log
+
+                mock_log.info = real_log.info
+                mock_log.debug = real_log.debug
+                mock_log.error = real_log.error
+
                 result = _fixture_writer.save_df_as_table(
                     _fixture_streaming_df,
                     table_name,
                     config,
                 )
 
-            # The writer should have logged a compatibility warning
-            assert any(
-                "Continuous trigger mode has limited sink support" in msg for msg in caplog.messages
-            ), "Expected a warning about continuous trigger limited sink support"
+                # The writer should have logged a compatibility warning
+                warning_calls = [
+                    c
+                    for c in mock_log.warning.call_args_list
+                    if "Continuous trigger mode has limited sink support" in str(c)
+                ]
+                assert len(warning_calls) > 0, (
+                    "Expected a warning about continuous trigger limited sink support"
+                )
 
             # The sync call returns a StreamingQuery; the failure happens async
             assert result is not None, "save_df_as_table should return a StreamingQuery"

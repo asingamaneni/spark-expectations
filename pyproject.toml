@@ -12,6 +12,12 @@ readme = "README.md"
 dynamic = ["version"]
 classifiers = [
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: Apache Software License",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 # https://www.python.org/doc/versions/
 requires-python = ">=3.9,<=3.13"
@@ -34,7 +40,7 @@ style = "semver"
 
 [project.optional-dependencies]
 pyspark = [
-  "pyspark[connect]>=3.0.0,<=4.0.0"
+  "pyspark[connect]>=3.0.0,<4.1.0"
 ]
 mkdocstrings = [
   "mkdocstrings[python]==0.27.0"

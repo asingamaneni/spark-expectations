@@ -106,6 +106,7 @@ def _fixture_agg_dq_rule_type_range():
         "product_id": "product_1",
     }
 
+
 @pytest.fixture(name="_fixture_agg_dq_rule_type_range_upper_lower")
 def _fixture_agg_dq_rule_type_range_upper_lower():
     return {
@@ -125,7 +126,6 @@ def _fixture_agg_dq_rule_type_range_upper_lower():
         "expected_value": None,
         "description": "rule to check if row count is within upper and lower bounds",
     }
-
 
 
 @pytest.fixture(name="_fixture_mock_context_without_detailed_stats")
@@ -158,7 +158,7 @@ def fixture_expectations():
                 "table_name": "test_table",
                 "tag": "validity",
                 "description": "col1 gt or eq 1",
-                "priority": "medium"
+                "priority": "medium",
             },
             {
                 "product_id": "product_1",
@@ -170,7 +170,7 @@ def fixture_expectations():
                 "table_name": "test_table",
                 "tag": "accuracy",
                 "description": "col1 gt or eq 2",
-                "priority": "medium"
+                "priority": "medium",
             },
             {
                 "product_id": "product_1",
@@ -182,7 +182,7 @@ def fixture_expectations():
                 "table_name": "test_table",
                 "tag": "completeness",
                 "description": "col1 gt or eq 3",
-                "priority": "medium"
+                "priority": "medium",
             },
         ],
         "agg_dq_rules": [
@@ -198,7 +198,7 @@ def fixture_expectations():
                 "enable_for_source_dq_validation": True,
                 "enable_for_target_dq_validation": True,
                 "description": "col1 sum gt 1",
-                "priority": "medium"
+                "priority": "medium",
             },
             {
                 "product_id": "product_1",
@@ -212,7 +212,7 @@ def fixture_expectations():
                 "enable_for_source_dq_validation": True,
                 "enable_for_target_dq_validation": True,
                 "description": "col2 unique value grater than 3",
-                "priority": "medium"
+                "priority": "medium",
             },
             {
                 "product_id": "product_1",
@@ -226,7 +226,7 @@ def fixture_expectations():
                 "enable_for_source_dq_validation": True,
                 "enable_for_target_dq_validation": True,
                 "description": "sum of col1 value grater than 6 and less than 10",
-                "priority": "medium"
+                "priority": "medium",
             },
         ],
         "query_dq_rules": [
@@ -245,7 +245,7 @@ def fixture_expectations():
                 "description": "table count should be greater than 1",
                 "expectation_source_f1": "select count(*) from query_test_table",
                 "expectation_target_f1": "select count(*) from query_test_table_target",
-                "priority": "medium"
+                "priority": "medium",
             },
             {
                 "product_id": "product_1",
@@ -262,7 +262,7 @@ def fixture_expectations():
                 "description": "table distinct row count should be greater than 3",
                 "expectation_source_f1": "select count(*) from (select distinct col1, col2 from query_test_table)",
                 "expectation_target_f1": "select count(*) from (select distinct col1, col2 from query_test_table_target)",
-                "priority": "medium"
+                "priority": "medium",
             },
         ],
     }
@@ -351,54 +351,54 @@ def fixture_row_dq_expected_result():
                     "description": "col1 gt or eq 1",
                     "rule": "col1_gt_eq_1",
                     "rule_type": "row_dq",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "status": "pass",
                     "tag": "validity",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
                 "row_dq_col1_gt_eq_2": {
                     "rule_type": "row_dq",
                     "rule": "col1_gt_eq_2",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "action_if_failed": "drop",
                     "status": "fail",
                     "tag": "accuracy",
                     "description": "col1 gt or eq 2",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
                 "row_dq_col1_gt_eq_3": {
                     "rule_type": "row_dq",
                     "rule": "col1_gt_eq_3",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "action_if_failed": "fail",
                     "status": "fail",
                     "tag": "completeness",
                     "description": "col1 gt or eq 3",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
             },
             {
                 "row_dq_col1_gt_eq_1": {
                     "action_if_failed": "ignore",
                     "description": "col1 gt or eq 1",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "rule": "col1_gt_eq_1",
                     "rule_type": "row_dq",
                     "status": "pass",
                     "tag": "validity",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
                 "row_dq_col1_gt_eq_2": {
                     "rule_type": "row_dq",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "rule": "col1_gt_eq_2",
                     "action_if_failed": "drop",
                     "status": "pass",
@@ -406,11 +406,11 @@ def fixture_row_dq_expected_result():
                     "description": "col1 gt or eq 2",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
                 "row_dq_col1_gt_eq_3": {
                     "rule_type": "row_dq",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "rule": "col1_gt_eq_3",
                     "action_if_failed": "fail",
                     "status": "fail",
@@ -418,7 +418,7 @@ def fixture_row_dq_expected_result():
                     "description": "col1 gt or eq 3",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
             },
             {
@@ -427,36 +427,36 @@ def fixture_row_dq_expected_result():
                     "description": "col1 gt or eq 1",
                     "rule": "col1_gt_eq_1",
                     "rule_type": "row_dq",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "status": "pass",
                     "tag": "validity",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
                 "row_dq_col1_gt_eq_2": {
                     "rule_type": "row_dq",
                     "rule": "col1_gt_eq_2",
                     "action_if_failed": "drop",
                     "status": "pass",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "tag": "accuracy",
                     "description": "col1 gt or eq 2",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
                 "row_dq_col1_gt_eq_3": {
                     "rule_type": "row_dq",
                     "rule": "col1_gt_eq_3",
-                    'column_name': 'col1',
+                    "column_name": "col1",
                     "action_if_failed": "fail",
                     "status": "pass",
                     "tag": "completeness",
                     "description": "col1 gt or eq 3",
                     "priority": "medium",
                     "id_hash": None,
-                    "expectation_hash": None
+                    "expectation_hash": None,
                 },
             },
         ]
@@ -473,36 +473,36 @@ def fixture_agg_dq_expected_result():
                 "description": "col1 sum gt 1",
                 "rule": "col1_sum_gt_eq_6",
                 "rule_type": "agg_dq",
-                'column_name': 'col1',
+                "column_name": "col1",
                 "status": "pass",
                 "tag": "validity",
                 "priority": "medium",
                 "id_hash": None,
-                "expectation_hash": None
+                "expectation_hash": None,
             },
             {
                 "rule_type": "agg_dq",
                 "rule": "col2_unique_value_gt_3",
-                'column_name': 'col2',
+                "column_name": "col2",
                 "action_if_failed": "fail",
                 "status": "fail",
                 "tag": "accuracy",
                 "description": "col2 unique value grater than 3",
                 "priority": "medium",
                 "id_hash": None,
-                "expectation_hash": None
+                "expectation_hash": None,
             },
             {
                 "rule_type": "agg_dq",
                 "rule": "col1_sum_gt_6_and_lt_10",
-                'column_name': 'col1',
+                "column_name": "col1",
                 "action_if_failed": "fail",
                 "status": "fail",
                 "tag": "accuracy",
                 "description": "sum of col1 value grater than 6 and less than 10",
                 "priority": "medium",
                 "id_hash": None,
-                "expectation_hash": None
+                "expectation_hash": None,
             },
         ]
     }
@@ -523,7 +523,7 @@ def fixture_query_dq_expected_result():
                 "action_if_failed": "ignore",
                 "priority": "medium",
                 "id_hash": None,
-                "expectation_hash": None
+                "expectation_hash": None,
             },
             {
                 "rule": "table_distinct_count",
@@ -535,7 +535,7 @@ def fixture_query_dq_expected_result():
                 "action_if_failed": "fail",
                 "priority": "medium",
                 "id_hash": None,
-                "expectation_hash": None
+                "expectation_hash": None,
             },
         ]
     }
@@ -651,7 +651,7 @@ def test_get_rule_is_active(
             False,
             True,
         ),
-         # expectations rule 3 - float retuned value
+        # expectations rule 3 - float retuned value
         (
             {
                 "product_id": "product_1",
@@ -686,7 +686,7 @@ def test_get_rule_is_active(
             True,
             False,
         ),
-         # expectations rule 4 - string retuned value
+        # expectations rule 4 - string retuned value
         (
             {
                 "product_id": "product_1",
@@ -715,7 +715,7 @@ def test_get_rule_is_active(
                 "tag": "accuracy",
                 "status": "pass",
                 "description": "table max col2 bigger then 'a'",
-                "actual_value": 'c',
+                "actual_value": "c",
                 "expected_value": ">'a'",
             },
             True,
@@ -856,27 +856,51 @@ def test_agg_query_dq_detailed_result_with_range_rule_type(
         "expected_value"
     )
 
+
 def test_agg_query_dq_detailed_result_with_upper_lower_rule(
-    _fixture_df, _fixture_agg_dq_rule_type_range_upper_lower, _fixture_agg_dq_detailed_expected_result, _fixture_mock_context
+    _fixture_df,
+    _fixture_agg_dq_rule_type_range_upper_lower,
+    _fixture_agg_dq_detailed_expected_result,
+    _fixture_mock_context,
 ):
     result_out, result_df = SparkExpectationsActions.agg_query_dq_detailed_result(
         _fixture_mock_context, _fixture_agg_dq_rule_type_range_upper_lower, _fixture_df, []
     )
 
-    assert result_df[1] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("product_id")
-    assert result_df[2] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("table_name")
-    assert result_df[3] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("rule_type")
-    assert result_df[4] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("rule")
-    assert result_df[5] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("column_name")
-    assert result_df[6] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("expectation")
-    assert result_df[7] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("tag")
-    assert result_df[8] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("description")
-    assert result_df[9] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("status")
+    assert result_df[1] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("product_id")
+    assert result_df[2] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("table_name")
+    assert result_df[3] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("rule_type")
+    assert result_df[4] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("rule")
+    assert result_df[5] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("column_name")
+    assert result_df[6] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("expectation")
+    assert result_df[7] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("tag")
+    assert result_df[8] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("description")
+    assert result_df[9] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("status")
 
-    assert result_df[10] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get("actual_value")
-    assert result_df[11] == _fixture_agg_dq_detailed_expected_result.get("result_agg_query_dq_detailed_upper_lower_bound").get(
-        "expected_value"
-    )
+    assert result_df[10] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("actual_value")
+    assert result_df[11] == _fixture_agg_dq_detailed_expected_result.get(
+        "result_agg_query_dq_detailed_upper_lower_bound"
+    ).get("expected_value")
 
 
 def test_agg_query_dq_detailed_result_with_querdq(
@@ -1031,6 +1055,7 @@ def test_run_dq_rules_negative_case(_fixture_df, _fixture_mock_context):
     with pytest.raises(SparkExpectationsMiscException, match=r"error occurred while running expectations .*"):
         SparkExpectationsActions.run_dq_rules(_fixture_mock_context, _fixture_df, expectations, "row_dq")
 
+
 @pytest.mark.parametrize(
     "expectations, expected_exception",
     [
@@ -1056,7 +1081,6 @@ def test_run_dq_rules_exception(_fixture_df, _fixture_mock_context, expectations
     # test the exception functionality in run_dq_rules with faulty user input
     with pytest.raises(expected_exception, match=r"error occurred while running expectations .*"):
         SparkExpectationsActions.run_dq_rules(_fixture_mock_context, _fixture_df, expectations, "row_dq")
-
 
 
 def test_run_dq_rules_condition_expression_exception(
@@ -1127,12 +1151,15 @@ def test_agg_query_dq_detailed_result_type_error(_fixture_agg_dq_rule, _fixture_
             class DummyRow:
                 def collect(self):
                     return [[["unexpected", "list"]]]  # Not int, float, str, or date
+
             return DummyRow()
+
     dummy_df = DummyDF()
-    with pytest.raises(SparkExpectationsMiscException, match="error occurred while running agg_query_dq_detailed_result .*"):
-        SparkExpectationsActions.agg_query_dq_detailed_result(
-            _fixture_mock_context, _fixture_agg_dq_rule, dummy_df, []
-        )
+    with pytest.raises(
+        SparkExpectationsMiscException, match="error occurred while running agg_query_dq_detailed_result .*"
+    ):
+        SparkExpectationsActions.agg_query_dq_detailed_result(_fixture_mock_context, _fixture_agg_dq_rule, dummy_df, [])
+
 
 @pytest.mark.parametrize(
     "input_df, rule_type_name, expected_output",
@@ -1227,6 +1254,7 @@ def test_create_agg_dq_results_streaming_skip(_fixture_mock_context):
     """Test line 449-454: streaming DataFrame skips aggregation results collection"""
     streaming_df = spark.readStream.format("rate").option("rowsPerSecond", "1").load()
     assert SparkExpectationsActions().create_agg_dq_results(_fixture_mock_context, streaming_df, "agg_dq") is None
+
 
 @pytest.mark.parametrize(
     "input_df, table_name, input_count, error_count, output_count, "
@@ -1652,7 +1680,9 @@ def test_create_agg_dq_results_streaming_skip(_fixture_mock_context):
                 [
                     {"meta_agg_dq_results": [{"action_if_failed": "ignore", "status": "fail"}]},
                 ]
-            ).drop("meta_agg_dq_results"),  # expected df
+            ).drop(
+                "meta_agg_dq_results"
+            ),  # expected df
         ),
         (
             # test case 16
@@ -1683,7 +1713,9 @@ def test_create_agg_dq_results_streaming_skip(_fixture_mock_context):
                 [
                     {"meta_agg_dq_results": [{"action_if_failed": "ignore", "status": "fail"}]},
                 ]
-            ).drop("meta_agg_dq_results"),  # expected df
+            ).drop(
+                "meta_agg_dq_results"
+            ),  # expected df
         ),
         (
             # test case 17
@@ -1714,7 +1746,9 @@ def test_create_agg_dq_results_streaming_skip(_fixture_mock_context):
                 [
                     {"meta_query_dq_results": [{"action_if_failed": "ignore", "status": "fail"}]},
                 ]
-            ).drop("meta_query_dq_results"),  # expected df
+            ).drop(
+                "meta_query_dq_results"
+            ),  # expected df
         ),
         (
             # test case 18
@@ -1797,7 +1831,9 @@ def test_create_agg_dq_results_streaming_skip(_fixture_mock_context):
                 [
                     {"meta_query_dq_results": [{"action_if_failed": "ignore", "status": "fail"}]},
                 ]
-            ).drop("meta_query_dq_results"),  # expected df
+            ).drop(
+                "meta_query_dq_results"
+            ),  # expected df
         ),
         (
             # test case 20
@@ -1831,7 +1867,9 @@ def test_create_agg_dq_results_streaming_skip(_fixture_mock_context):
                 [
                     {"meta_query_dq_results": [{"action_if_failed": "ignore", "status": "fail"}]},
                 ]
-            ).drop("meta_query_dq_results"),  # expected df
+            ).drop(
+                "meta_query_dq_results"
+            ),  # expected df
         ),
     ],
 )
@@ -1900,8 +1938,6 @@ def test_action_on_dq_rules(
             assert df.collect() == expected_output.collect()
 
 
-
-
 @pytest.mark.parametrize(
     "input_df, table_name, input_count, error_count, output_count, rule_type, row_dq_flag",
     [
@@ -1948,21 +1984,35 @@ def test_action_on_rules_streaming_skip(_fixture_mock_context):
     streaming_df = streaming_df.withColumn(
         "meta_row_dq_results", array(create_map(lit("status"), lit("pass"), lit("action_if_failed"), lit("ignore")))
     ).withColumn("col1", lit(1))
-    result_df = SparkExpectationsActions.action_on_rules(
-        _fixture_mock_context, streaming_df, 10, 0, 0, "row_dq", True
-    )
+    result_df = SparkExpectationsActions.action_on_rules(_fixture_mock_context, streaming_df, 10, 0, 0, "row_dq", True)
     assert result_df.isStreaming is True
 
 
 def test_agg_query_dq_detailed_result_type_error_line_210(_fixture_agg_dq_rule, _fixture_mock_context):
     """Test line 210: TypeError for unexpected aggregation result type"""
     df = spark.createDataFrame([{"col1": 1}])
-    with patch.object(df, 'agg') as mock_agg:
+    with patch.object(df, "agg") as mock_agg:
         mock_result = Mock()
         mock_result.collect.return_value = [[[]]]  # Return list to trigger TypeError
         mock_agg.return_value = mock_result
-        with pytest.raises(SparkExpectationsMiscException, match="error occurred while running agg_query_dq_detailed_result .*"):
-            SparkExpectationsActions.agg_query_dq_detailed_result(
-                _fixture_mock_context, _fixture_agg_dq_rule, df, []
-            )
+        with pytest.raises(
+            SparkExpectationsMiscException, match="error occurred while running agg_query_dq_detailed_result .*"
+        ):
+            SparkExpectationsActions.agg_query_dq_detailed_result(_fixture_mock_context, _fixture_agg_dq_rule, df, [])
 
+
+def test_agg_dq_range_raises_on_none_aggregation(_fixture_df, _fixture_agg_dq_rule_type_range, _fixture_mock_context):
+    """Test that range-based aggregation raises ValueError when aggregation returns None.
+
+    This covers the bug where the range path used int() directly on the aggregation
+    result without checking for None, while the non-range path properly handled it.
+    """
+    df = _fixture_df.filter("1=0")  # Empty dataframe to produce null aggregation
+
+    with pytest.raises(
+        SparkExpectationsMiscException,
+        match="error occurred while running agg_query_dq_detailed_result",
+    ):
+        SparkExpectationsActions.agg_query_dq_detailed_result(
+            _fixture_mock_context, _fixture_agg_dq_rule_type_range, df, []
+        )

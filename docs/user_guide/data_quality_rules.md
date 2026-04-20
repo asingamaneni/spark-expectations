@@ -13,7 +13,7 @@ When evaluating characteristic of data and it's quality we usually think of data
 !!! Hint "[Rule Examples](../../configurations/rules/)" 
 
 ## Rules Table 
-For user to be able to run spark-expectation or define rules `Rules table` needs to exist and. 
+For user to be able to run spark-expectation or define rules `Rules table` needs to exist. 
 Format of a table needs to match. 
 
 The below SQL statements used three namespaces which works with Databricks Unity Catalog, but if you are using hive

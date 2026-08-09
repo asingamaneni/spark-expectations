@@ -1,4 +1,4 @@
-### Example - Write to Delta
+### Example - Write to Iceberg
 
 Setup SparkSession for iceberg to test in your local environment. Configure accordingly for higher environments.
 Refer to Examples in [base_setup.py](https://github.com/Nike-Inc/spark-expectations/blob/main/examples/scripts/base_setup.py) and

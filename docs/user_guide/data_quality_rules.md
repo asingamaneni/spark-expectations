@@ -68,7 +68,7 @@ The Spark Expectation process consists of three phases:
 
 1. When enable_for_source_dq_validation is true, execute agg_dq and query_dq on the source Dataframe
 2. If the first step is successful, proceed to run row_dq
-3. When enable_for_target_dq_validation is true, execute agg_dq and query_dq on the Dataframe resulting from row_dq. If the Dataframe does not consists any records after phase 2, this step will not run.
+3. When enable_for_target_dq_validation is true, execute agg_dq and query_dq on the Dataframe resulting from row_dq. If the Dataframe does not contain any records after phase 2, this step will not run.
 
 ### Action If Failed Configuration For Data Quality Rules
 

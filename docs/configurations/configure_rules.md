@@ -74,7 +74,7 @@ action_if_failed, tag, description,  enable_for_source_dq_validation,  enable_fo
 -- The aggregation rule is established on the table count and the metadata of the rule will be captured in the 
 --statistics table when distinct count greater than 10000 and fails the job as "action_if_failed" set to "fail" 
 --and enabled only for validated dataset
-,('apla_nd', '`catalog`.`schema`..customer_order', 'agg_dq', 'row_count', '*', 'count(*)>=10000', 'fail', 'validity',
+,('apla_nd', '`catalog`.`schema`.customer_order', 'agg_dq', 'row_count', '*', 'count(*)>=10000', 'fail', 'validity',
 'distinct ship_mode must be less or equals to 3', false, true, true,false, 0,null, null)
 
 ```

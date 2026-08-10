@@ -64,7 +64,7 @@ create table if not exists `catalog`.`schema`.`dq_stats` (
 
 ### DQ Detailed Stats Table
 
-Library is responsible for auto generating two stats tables that provide per expectation/rule executaion status view. 
+Library is responsible for auto generating two stats tables that provide per expectation/rule execution status view. 
 
 Tables in question are
 - `<stats_table_name>_detailed`
@@ -156,7 +156,7 @@ dq_job_metadata_info string,  -- (28)!
 !!! warning
     DQ Query Output Table is optional. It is auto created and named as stats table with suffix `_querydq_output`.
 
-    Name can be overriden by passing `querydq_output_custom_table_name`
+    Name can be overridden by passing `querydq_output_custom_table_name`
 
     Default Behaviour: Detailed Stats table is disabled.
 
